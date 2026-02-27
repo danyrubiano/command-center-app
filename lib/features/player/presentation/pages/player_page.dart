@@ -33,6 +33,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   Timer? _timer;
   
   Waveform? _mergedWaveform;
+  Map<String, Waveform> _trackWaveforms = {};
   bool _isExtractingWaveform = false;
   String _waveformMessage = '';
   
@@ -41,7 +42,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   Timer? _transitionTimer;
 
   // Real-time VU logic
-  double _currentVuPeak = 0.0;
+  double _masterVuPeak = 0.0;
+  Map<String, double> _trackVuPeaks = {};
 
   @override
   void initState() {
@@ -63,9 +65,10 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
           _updateVuPeak();
         });
       } else if (mounted && !_isPlaying) {
-         setState(() {
+        setState(() {
            _currentPosition = _audioEngine.currentPosition;
-           _currentVuPeak = 0.0;
+           _masterVuPeak = 0.0;
+           _trackVuPeaks.clear();
          });
       }
     });
@@ -79,21 +82,35 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   }
 
   void _updateVuPeak() {
-    if (_mergedWaveform == null || _totalDuration.inMilliseconds == 0 || !_isPlaying) {
-       _currentVuPeak = 0.0;
+    if (_totalDuration.inMilliseconds == 0 || !_isPlaying) {
+       _masterVuPeak = 0.0;
+       _trackVuPeaks.clear();
        return;
     }
     double progress = _currentPosition.inMilliseconds / _totalDuration.inMilliseconds;
-    int index = (progress * _mergedWaveform!.length).floor();
-    index = index.clamp(0, _mergedWaveform!.length - 1);
     
-    // Waveform pixel limits
-    int dataIdx = index * 2;
-    if (dataIdx + 1 < _mergedWaveform!.data.length) {
-       int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
-       double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
-       // Simple low pass filter to bridge 50ms frames pleasantly
-       _currentVuPeak = (_currentVuPeak * 0.4) + (peak * 0.6);
+    // Master Peak based on merged waveform
+    if (_mergedWaveform != null) {
+      int index = (progress * _mergedWaveform!.length).floor().clamp(0, _mergedWaveform!.length - 1);
+      int dataIdx = index * 2;
+      if (dataIdx + 1 < _mergedWaveform!.data.length) {
+         int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
+         double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+         _masterVuPeak = (_masterVuPeak * 0.4) + (peak * 0.6);
+      }
+    }
+
+    // Individual Track Peaks
+    for (var entry in _trackWaveforms.entries) {
+       final wf = entry.value;
+       int index = (progress * wf.length).floor().clamp(0, wf.length - 1);
+       int dataIdx = index * 2;
+       if (dataIdx + 1 < wf.data.length) {
+          int maxVal = wf.data[dataIdx + 1].abs();
+          double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+          double prev = _trackVuPeaks[entry.key] ?? 0.0;
+          _trackVuPeaks[entry.key] = (prev * 0.4) + (peak * 0.6);
+       }
     }
   }
 
@@ -143,6 +160,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
          _waveformMessage = 'Analyzing Sequence...';
       });
       _mergedWaveform = await WaveformService.getMergedWaveform(sequence);
+      _trackWaveforms = await WaveformService.getTrackWaveforms(sequence);
       
       if (mounted) {
         setState(() {
@@ -446,7 +464,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                              track: t, 
                              color: tColor, 
                              engine: _audioEngine,
-                             currentVuPeak: _currentVuPeak,
+                             currentVuPeak: _trackVuPeaks[t.id] ?? 0.0,
                              isPlaying: _isPlaying,
                              onStateChanged: () => setState((){}),
                            );
@@ -464,7 +482,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                         track: Track(id: 'master', name: 'Master', filePath: '', isClickOrCues: false, volume: 1.0), 
                         color: Colors.redAccent, 
                         engine: _audioEngine,
-                        currentVuPeak: _currentVuPeak,
+                        currentVuPeak: _masterVuPeak,
                         isPlaying: _isPlaying,
                         isMaster: true,
                         onStateChanged: () => setState((){}),
@@ -609,8 +627,9 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                    });
                    widget.onStateChanged?.call();
                 },
-                child: _miniBtn('M', widget.track.mute ? Colors.red : Colors.grey),
+                child: _miniBtn('M', Colors.red, active: widget.track.mute),
               ),
+              const SizedBox(width: 8),
               if (!widget.isMaster)
                 GestureDetector(
                   onTap: () {
@@ -622,7 +641,7 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                        widget.onStateChanged?.call();
                      }
                   },
-                  child: _miniBtn('S', widget.track.solo ? Colors.yellow : Colors.grey),
+                 child: _miniBtn('S', Colors.yellow, active: widget.track.solo),
                 ),
             ],
           ),
@@ -743,15 +762,22 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
     );
   }
 
-  Widget _miniBtn(String label, Color color) {
+  Widget _miniBtn(String label, Color color, {bool active = false}) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        border: Border.all(color: color),
+        color: active ? color : color.withValues(alpha: 0.1),
+        border: Border.all(color: active ? color : color.withValues(alpha: 0.5)),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      child: Text(
+        label, 
+        style: TextStyle(
+          color: active ? Colors.black : color, 
+          fontSize: 10, 
+          fontWeight: FontWeight.bold
+        )
+      ),
     );
   }
 }

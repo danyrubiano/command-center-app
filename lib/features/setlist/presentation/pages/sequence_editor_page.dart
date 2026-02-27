@@ -24,8 +24,12 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
   Duration _totalDuration = Duration.zero;
   
   Waveform? _mergedWaveform;
+  Map<String, Waveform> _trackWaveforms = {};
   bool _isExtractingWaveform = false;
   String _waveformMessage = 'Loading sequence...';
+  
+  double _masterVuPeak = 0.0;
+  Map<String, double> _trackVuPeaks = {};
   
   late List<CueTag> _cueTags;
 
@@ -40,9 +44,49 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
          setState(() {
             _currentPosition = _audioEngine.currentPosition;
             _totalDuration = _audioEngine.totalDuration;
+            _updateVuPeak();
+         });
+      } else if (mounted) {
+         setState(() {
+            _currentPosition = _audioEngine.currentPosition;
+            _masterVuPeak = 0.0;
+            _trackVuPeaks.clear();
          });
       }
     });
+  }
+
+  void _updateVuPeak() {
+    if (_totalDuration.inMilliseconds == 0 || !_isPlaying) {
+       _masterVuPeak = 0.0;
+       _trackVuPeaks.clear();
+       return;
+    }
+    double progress = _currentPosition.inMilliseconds / _totalDuration.inMilliseconds;
+    
+    // Master Peak based on merged waveform
+    if (_mergedWaveform != null) {
+      int index = (progress * _mergedWaveform!.length).floor().clamp(0, _mergedWaveform!.length - 1);
+      int dataIdx = index * 2;
+      if (dataIdx + 1 < _mergedWaveform!.data.length) {
+         int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
+         double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+         _masterVuPeak = (_masterVuPeak * 0.4) + (peak * 0.6);
+      }
+    }
+
+    // Individual Track Peaks
+    for (var entry in _trackWaveforms.entries) {
+       final wf = entry.value;
+       int index = (progress * wf.length).floor().clamp(0, wf.length - 1);
+       int dataIdx = index * 2;
+       if (dataIdx + 1 < wf.data.length) {
+          int maxVal = wf.data[dataIdx + 1].abs();
+          double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+          double prev = _trackVuPeaks[entry.key] ?? 0.0;
+          _trackVuPeaks[entry.key] = (prev * 0.4) + (peak * 0.6);
+       }
+    }
   }
 
   Future<void> _initAudio() async {
@@ -63,6 +107,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
              if (mounted) setState(() => _waveformMessage = 'Analyzing stems: ${(p * 100).toInt()}%');
           }
         );
+        _trackWaveforms = await WaveformService.getTrackWaveforms(widget.sequence);
         if (mounted) setState(() { _mergedWaveform = wave; _isExtractingWaveform = false; });
       } catch (e) {
         if (mounted) setState(() { _waveformMessage = 'Waveform failed: $e'; _isExtractingWaveform = false; });
@@ -312,11 +357,13 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
             
             // 3. Bottom Section (Mixer Configuration)
             Expanded(
-              flex: 5,
+              flex: 3,
               child: _MixerConfigurationSection(
                 sequence: widget.sequence, 
                 audioEngine: _audioEngine,
                 isPlaying: _isPlaying,
+                masterVuPeak: _masterVuPeak,
+                trackVuPeaks: _trackVuPeaks,
                 onStateChanged: () => setState(() {}),
               ),
             ),
@@ -560,12 +607,16 @@ class _MixerConfigurationSection extends StatelessWidget {
   final Sequence sequence;
   final AudioEngineService audioEngine;
   final bool isPlaying;
+  final double masterVuPeak;
+  final Map<String, double> trackVuPeaks;
   final VoidCallback onStateChanged;
 
   const _MixerConfigurationSection({
     required this.sequence, 
     required this.audioEngine,
     required this.isPlaying,
+    required this.masterVuPeak,
+    required this.trackVuPeaks,
     required this.onStateChanged,
   });
 
@@ -595,6 +646,7 @@ class _MixerConfigurationSection extends StatelessWidget {
                        trackId: track.id,
                        audioEngine: audioEngine,
                        isPlaying: isPlaying,
+                       vuPeak: trackVuPeaks[track.id] ?? 0.0,
                        isMuted: track.mute,
                        isSoloed: track.solo,
                        onStateChanged: onStateChanged,
@@ -615,6 +667,7 @@ class _MixerConfigurationSection extends StatelessWidget {
                isMaster: true,
                audioEngine: audioEngine,
                isPlaying: isPlaying,
+               vuPeak: masterVuPeak,
                isMuted: audioEngine.globalMuted,
                isSoloed: false, 
                onStateChanged: onStateChanged,
@@ -635,6 +688,7 @@ class _EditableTrackStrip extends StatefulWidget {
   final String? trackId;
   final AudioEngineService? audioEngine;
   final bool isPlaying;
+  final double vuPeak;
   final bool isMuted;
   final bool isSoloed;
   final VoidCallback? onStateChanged;
@@ -648,6 +702,7 @@ class _EditableTrackStrip extends StatefulWidget {
     this.trackId,
     this.audioEngine,
     this.isPlaying = false,
+    this.vuPeak = 0.0,
     this.isMuted = false,
     this.isSoloed = false,
     this.onStateChanged,
@@ -657,10 +712,9 @@ class _EditableTrackStrip extends StatefulWidget {
   State<_EditableTrackStrip> createState() => _EditableTrackStripState();
 }
 
-class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTickerProviderStateMixin {
+class _EditableTrackStripState extends State<_EditableTrackStrip> {
   late double _gain;
   late double _pan;
-  late AnimationController _animController;
 
   @override
   void initState() {
@@ -668,20 +722,6 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
     // Translate Linear Volume (0.0 -> 1.0+) back into dB scale for the UI Slider
     _gain = widget.isMaster ? 0.0 : (widget.initialVolume > 0 ? 20 * (math.log(widget.initialVolume) / math.ln10) : -60.0);
     _pan = widget.initialPan;
-    
-    // Simulate dynamic audio playback levels bouncing
-    _animController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 300 + (widget.name.length * 40)), // Vary speed per track
-      lowerBound: 0.4,
-      upperBound: 1.0,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
   }
 
   @override
@@ -733,7 +773,7 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _miniBtn('M', widget.isMuted ? Colors.redAccent : Colors.grey, onTap: () {
+              _miniBtn('M', Colors.redAccent, active: widget.isMuted, onTap: () {
                  if (widget.isMaster && widget.audioEngine != null) {
                     widget.audioEngine!.setGlobalMute(!widget.isMuted);
                  } else if (widget.trackId != null && widget.audioEngine != null) {
@@ -742,7 +782,7 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
                  widget.onStateChanged?.call();
               }),
               if (!widget.isMaster)
-                _miniBtn('S', widget.isSoloed ? Colors.yellowAccent : Colors.grey, onTap: () {
+                _miniBtn('S', Colors.yellowAccent, active: widget.isSoloed, onTap: () {
                    if (widget.trackId != null && widget.audioEngine != null) {
                       widget.audioEngine!.setTrackSolo(widget.trackId!, !widget.isSoloed);
                    }
@@ -845,16 +885,15 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
                     border: Border.all(color: Colors.white12),
                   ),
                   alignment: Alignment.bottomCenter,
-                  child: AnimatedBuilder(
-                    animation: _animController,
-                    builder: (context, child) {
+                  child: Builder(
+                    builder: (context) {
                       // Normalize the Decibel gain (-60 to +12) to a 0.0-1.0 scale
                       double normalizedGain = (_gain + 60) / 72.0;
                       if (_gain <= -59.5) normalizedGain = 0.0;
                       
-                      // Apply the simulated audio level bouncing if playing
-                      double dynamicLevel = widget.isPlaying 
-                           ? (normalizedGain * _animController.value).clamp(0.0, 1.0)
+                      // Apply the audio level bouncing if playing
+                      double dynamicLevel = widget.isPlaying && !widget.isMuted
+                           ? (normalizedGain * widget.vuPeak).clamp(0.0, 1.0)
                            : 0.0;
                       
                       return FractionallySizedBox(
@@ -865,7 +904,7 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                               colors: [
-                                widget.color.withOpacity(0.5),
+                                widget.color.withValues(alpha: 0.5),
                                 widget.color,
                               ],
                             ),
@@ -884,17 +923,24 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
     );
   }
 
-  Widget _miniBtn(String label, Color color, {VoidCallback? onTap}) {
+  Widget _miniBtn(String label, Color color, {bool active = false, VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.black26,
-          border: Border.all(color: color),
+          color: active ? color : color.withValues(alpha: 0.1),
+          border: Border.all(color: active ? color : color.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        child: Text(
+          label, 
+          style: TextStyle(
+             color: active ? Colors.black : color, 
+             fontSize: 10, 
+             fontWeight: FontWeight.bold
+          )
+        ),
       ),
     );
   }

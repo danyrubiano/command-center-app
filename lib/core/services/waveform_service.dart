@@ -131,4 +131,18 @@ class WaveformService {
       data: mergedData,
     );
   }
+
+  /// Exports a dictionary mapping Track IDs to their individual Waveforms for independent real-time tracking
+  static Future<Map<String, Waveform>> getTrackWaveforms(Sequence sequence) async {
+    Map<String, Waveform> map = {};
+    for (var t in sequence.tracks) {
+      if (t.isClickOrCues) continue; // Cues don't get waveform extraction right now
+      final sequenceDir = p.dirname(t.filePath);
+      final waveFile = File(p.join(sequenceDir, '${t.name}.wave'));
+      if (waveFile.existsSync()) {
+        map[t.id] = await JustWaveform.parse(waveFile);
+      }
+    }
+    return map;
+  }
 }
