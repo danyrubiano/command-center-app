@@ -700,23 +700,32 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> with SingleTic
           const SizedBox(height: 8),
           
           if (!widget.isMaster) ...[
-            Text('Pan', style: TextStyle(fontSize: 10, color: Colors.white70)),
-            Stack(
-              alignment: Alignment.center,
+            Row(
               children: [
-                Container(width: 2, height: 12, color: Colors.white54),
-                Slider(
-                  value: _pan,
-                  min: -1.0, max: 1.0,
-                  onChanged: (v) {
-                    setState(() => _pan = v);
-                    if (widget.trackId != null && widget.audioEngine != null) {
-                       widget.audioEngine!.setTrackPan(widget.trackId!, v);
-                    }
-                  },
-                  activeColor: Colors.white70,
-                  inactiveColor: Colors.white24,
+                const SizedBox(width: 4),
+                const Text('L', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(width: 2, height: 12, color: Colors.white54),
+                      Slider(
+                        value: _pan,
+                        min: -1.0, max: 1.0,
+                        onChanged: (v) {
+                          setState(() => _pan = v);
+                          if (widget.trackId != null && widget.audioEngine != null) {
+                             widget.audioEngine!.setTrackPan(widget.trackId!, v);
+                          }
+                        },
+                        activeColor: Colors.white70,
+                        inactiveColor: Colors.white24,
+                      ),
+                    ],
+                  ),
                 ),
+                const Text('R', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                const SizedBox(width: 4),
               ],
             ),
           ],

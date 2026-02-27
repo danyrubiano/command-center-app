@@ -321,7 +321,16 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TIMELINE & CUES', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Text(currentSequence.name.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            if (nextIndex != _currentSequenceIndex) ...[
+                              const SizedBox(width: 16),
+                              const Text('NEXT: ', style: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.normal)),
+                              Text(_setlist.sequences[nextIndex].name.toUpperCase(), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.normal)),
+                            ],
+                          ],
+                        ),
                         Text('${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}', style: const TextStyle(color: Colors.white54)),
                       ],
                     ),
@@ -502,41 +511,53 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           const SizedBox(height: 12),
           
           if (!widget.isMaster) ...[
-            const Text('Pan', style: TextStyle(fontSize: 10, color: Colors.white70)),
-            Stack(
-              alignment: Alignment.center,
+            Row(
               children: [
-                Container(width: 2, height: 12, color: Colors.white54),
-                Slider(
-                  value: _pan,
-                  min: -1.0, max: 1.0,
-                  onChanged: (v) {
-                    setState(() => _pan = v);
-                    widget.engine.setTrackPan(widget.track.id, v);
-                  },
-                  activeColor: Colors.white70,
-                  inactiveColor: Colors.white24,
+                const SizedBox(width: 4),
+                const Text('L', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(width: 2, height: 12, color: Colors.white54),
+                      Slider(
+                        value: _pan,
+                        min: -1.0, max: 1.0,
+                        onChanged: (v) {
+                          setState(() => _pan = v);
+                          widget.engine.setTrackPan(widget.track.id, v);
+                        },
+                        activeColor: Colors.white70,
+                        inactiveColor: Colors.white24,
+                      ),
+                    ],
+                  ),
                 ),
+                const Text('R', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                const SizedBox(width: 4),
               ],
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                     setState(() {
-                        if (widget.isMaster) {
-                           widget.engine.setGlobalMute(!widget.track.mute);
-                           widget.track.mute = !widget.track.mute;
-                        } else {
-                           widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
-                           widget.track.mute = !widget.track.mute;
-                        }
-                     });
-                     widget.onStateChanged?.call();
-                  },
-                  child: _miniBtn('M', widget.track.mute ? Colors.red : Colors.grey),
-                ),
+          ],
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              GestureDetector(
+                onTap: () {
+                   setState(() {
+                      if (widget.isMaster) {
+                         widget.engine.setGlobalMute(!widget.track.mute);
+                         widget.track.mute = !widget.track.mute;
+                      } else {
+                         widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
+                         widget.track.mute = !widget.track.mute;
+                      }
+                   });
+                   widget.onStateChanged?.call();
+                },
+                child: _miniBtn('M', widget.track.mute ? Colors.red : Colors.grey),
+              ),
+              if (!widget.isMaster)
                 GestureDetector(
                   onTap: () {
                      if (!widget.isMaster) {
@@ -549,10 +570,9 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                   },
                   child: _miniBtn('S', widget.track.solo ? Colors.yellow : Colors.grey),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
+            ],
+          ),
+          const SizedBox(height: 12),
           
           Text(
             _gain > 0 ? '+${_gain.toStringAsFixed(1)} dB' : '${_gain.toStringAsFixed(1)} dB',
