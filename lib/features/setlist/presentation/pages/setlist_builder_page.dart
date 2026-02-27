@@ -89,7 +89,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     });
   }
 
-  void _editSequenceNameAndSettings() {
+  void _editSetlistName() {
      if (_currentSetlist == null) return;
      TextEditingController ctrl = TextEditingController(text: _currentSetlist!.name);
      showDialog(context: context, builder: (ctx) {
@@ -100,10 +100,39 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
              ElevatedButton(
                onPressed: () {
-                 setState(() {
-                    _currentSetlist!.name = ctrl.text;
-                 });
+                 if (ctrl.text.trim().isNotEmpty) {
+                   setState(() {
+                      _currentSetlist!.name = ctrl.text.trim();
+                   });
+                 }
                  Navigator.pop(ctx);
+               },
+               child: const Text('Save'),
+             ),
+           ],
+         );
+     });
+  }
+
+  void _editSequenceName(Sequence seq, int index) {
+      TextEditingController ctrl = TextEditingController(text: seq.name);
+      showDialog(context: context, builder: (ctx) {
+         return AlertDialog(
+           title: const Text('Edit Sequence Name'),
+           content: TextField(
+               controller: ctrl, 
+               decoration: const InputDecoration(labelText: 'Name'),
+            ),
+           actions: [
+             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+             ElevatedButton(
+               onPressed: () {
+                  if (ctrl.text.trim().isNotEmpty) {
+                     setState(() {
+                        _currentSetlist!.sequences[index].name = ctrl.text.trim();
+                     });
+                  }
+                  Navigator.pop(ctx);
                },
                child: const Text('Save'),
              ),
@@ -242,7 +271,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Flexible(child: Text('Editing: ${_currentSetlist!.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis)),
-                            IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.white54), onPressed: _editSequenceNameAndSettings),
+                            IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.white54), onPressed: _editSetlistName),
                           ],
                         ),
                         Wrap(
@@ -298,7 +327,16 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                 backgroundColor: Theme.of(context).primaryColor,
                                 child: Text('${index + 1}', style: const TextStyle(color: Colors.white)),
                               ),
-                              title: Text(seq.name),
+                              title: Row(
+                                children: [
+                                   Flexible(child: Text(seq.name, overflow: TextOverflow.ellipsis)),
+                                   const SizedBox(width: 8),
+                                   IconButton(
+                                      icon: const Icon(Icons.edit, size: 16, color: Colors.white54), 
+                                      onPressed: () => _editSequenceName(seq, index)
+                                   ),
+                                ]
+                              ),
                               subtitle: Text('Pause After: ${seq.pauseAfterSeconds}s | Key: ${seq.detectedKey}'),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
