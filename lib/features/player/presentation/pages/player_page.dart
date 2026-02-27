@@ -503,15 +503,21 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           
           if (!widget.isMaster) ...[
             const Text('Pan', style: TextStyle(fontSize: 10, color: Colors.white70)),
-            Slider(
-              value: _pan,
-              min: -1.0, max: 1.0,
-              onChanged: (v) {
-                setState(() => _pan = v);
-                widget.engine.setTrackPan(widget.track.id, v);
-              },
-              activeColor: Colors.white70,
-              inactiveColor: Colors.white24,
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(width: 2, height: 12, color: Colors.white54),
+                Slider(
+                  value: _pan,
+                  min: -1.0, max: 1.0,
+                  onChanged: (v) {
+                    setState(() => _pan = v);
+                    widget.engine.setTrackPan(widget.track.id, v);
+                  },
+                  activeColor: Colors.white70,
+                  inactiveColor: Colors.white24,
+                ),
+              ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -562,18 +568,41 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('+12', style: TextStyle(fontSize: 8, color: Colors.white54)),
-                      Text('  0', style: TextStyle(fontSize: 8, color: Colors.greenAccent)),
-                      Text('-12', style: TextStyle(fontSize: 8, color: Colors.white54)),
-                      Text('-24', style: TextStyle(fontSize: 8, color: Colors.white54)),
-                      Text('-60', style: TextStyle(fontSize: 8, color: Colors.white54)),
-                    ],
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double padding = 24.0;
+                    final double trackHeight = constraints.maxHeight - (padding * 2);
+                    
+                    Widget buildTick(String label, Color color, double value) {
+                      final double percent = (value + 60.0) / 72.0;
+                      final double bottom = padding + (trackHeight * percent) - 6;
+                      return Positioned(
+                        bottom: bottom,
+                        right: 0,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(label, style: TextStyle(fontSize: 8, color: color)),
+                            const SizedBox(width: 4),
+                            Container(width: 6, height: 1, color: color),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    return SizedBox(
+                      width: 28,
+                      child: Stack(
+                        children: [
+                          buildTick('+12', Colors.white54, 12.0),
+                          buildTick('  0', Colors.greenAccent, 0.0),
+                          buildTick('-12', Colors.white54, -12.0),
+                          buildTick('-24', Colors.white54, -24.0),
+                          buildTick('-60', Colors.white54, -60.0),
+                        ],
+                      ),
+                    );
+                  }
                 ),
                 Expanded(
                   child: RotatedBox(
