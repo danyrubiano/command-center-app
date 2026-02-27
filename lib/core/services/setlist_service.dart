@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:command_center_app/core/models/setlist.dart';
+import 'package:command_center_app/core/models/sequence.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -71,8 +72,10 @@ class SetlistService {
               // Create a clone but retain the setlist's unique runtime ID for reordering
               final originalId = sl.sequences[i].id; 
               
-              sl.sequences[i] = Sequence.fromJson(updatedSequence.toJson());
-              sl.sequences[i].id = originalId; // keep the unique builder ID!
+              final updatedJson = updatedSequence.toJson();
+              updatedJson['id'] = originalId;
+              
+              sl.sequences[i] = Sequence.fromJson(updatedJson);
               
               changed = true;
            }
