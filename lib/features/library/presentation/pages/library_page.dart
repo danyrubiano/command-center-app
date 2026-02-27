@@ -1,0 +1,148 @@
+import 'package:flutter/material.dart';
+
+import 'package:command_center_app/features/setlist/presentation/pages/sequence_editor_page.dart';
+import 'package:command_center_app/core/models/sequence.dart';
+import 'package:command_center_app/core/services/file_extraction_service.dart';
+
+class LibraryPage extends StatefulWidget {
+  const LibraryPage({super.key});
+
+  @override
+  State<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends State<LibraryPage> {
+  List<Sequence> _sequences = [];
+  bool _isExtracting = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadSequences();
+  }
+
+  Future<void> _loadSequences() async {
+    final loaded = await FileExtractionService.loadSavedSequences();
+    if (mounted) {
+      setState(() {
+        _sequences = loaded;
+      });
+    }
+  }
+  
+  Future<void> _extractSequence() async {
+    setState(() => _isExtracting = true);
+    try {
+      final Sequence? newSequence = await FileExtractionService.pickAndExtractSequence();
+      if (newSequence != null) {
+        setState(() {
+          _sequences.add(newSequence);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error extracting file: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExtracting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Upload Area
+            Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Theme.of(context).canvasColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24, style: BorderStyle.solid),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.cloud_upload_outlined, size: 48, color: Colors.greenAccent),
+                  const SizedBox(height: 16),
+                  _isExtracting 
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
+                        onPressed: _extractSequence,
+                        child: const Text('Upload / Extract Sequences (.zip)', style: TextStyle(color: Colors.white)),
+                      ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Library List
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).canvasColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _sequences.isEmpty 
+                  ? const Center(child: Text('No sequences extracted yet. Upload a .zip file.', style: TextStyle(color: Colors.white54)))
+                  : ListView.builder(
+                      itemCount: _sequences.length,
+                      itemBuilder: (context, index) {
+                        final Sequence seq = _sequences[index];
+                        return ListTile(
+                          leading: const Icon(Icons.music_note, color: Colors.white70),
+                          title: Row(
+                            children: [
+                              Text('${seq.name} - ${seq.detectedKey}'),
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 16, color: Colors.white54),
+                                onPressed: () {}, // Edit sequence name interaction
+                                tooltip: 'Rename Sequence',
+                              ),
+                            ],
+                          ),
+                          subtitle: Text('${seq.tracks.length} Tracks • Discovered from ZIP'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.tune, color: Colors.greenAccent),
+                                tooltip: 'Open Sequence Editor',
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SequenceEditorPage(sequence: seq),
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                onPressed: () {
+                                  setState(() {
+                                    _sequences.removeAt(index);
+                                  });
+                                }
+                              ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
