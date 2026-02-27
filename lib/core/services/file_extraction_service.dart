@@ -185,7 +185,7 @@ class FileExtractionService {
       await oldDir.rename(targetDirPath);
     }
     
-    List<Track> updatedTracks = sequence.tracks.map((t) {
+    List<Track> updatedTracks = sequence.tracks.map<Track>((t) {
         String newFilePath = p.join(targetDirPath, p.basename(t.filePath));
         // Using existing model values to prevent loss of data if we implement metadata later
         return Track(
@@ -193,7 +193,7 @@ class FileExtractionService {
            name: t.name,
            filePath: newFilePath,
            isClickOrCues: t.isClickOrCues,
-           volumeDb: t.volumeDb,
+           volume: t.volume,
            pan: t.pan,
            mute: t.mute,
            solo: t.solo,
