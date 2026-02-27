@@ -123,19 +123,19 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     });
 
     try {
-      await _audioEngine.loadSequence(seq);
+      await _audioEngine.loadSequence(sequence);
       
       setState(() {
          _waveformMessage = 'Analyzing Sequence...';
       });
-      _mergedWaveform = await WaveformService.getMergedWaveform(seq);
+      _mergedWaveform = await WaveformService.getMergedWaveform(sequence);
       
       if (mounted) {
         setState(() {
           _totalDuration = _audioEngine.totalDuration;
           _currentPosition = Duration.zero;
           _isExtractingWaveform = false;
-          _currentSequenceIndex = _setlist.sequences.indexOf(seq);
+          _currentSequenceIndex = _setlist.sequences.indexOf(sequence);
         });
 
         if (startTransition) {
