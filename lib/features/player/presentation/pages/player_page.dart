@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_waveform/just_waveform.dart';
 
@@ -384,6 +385,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                              engine: _audioEngine,
                              vuAnim: _vuAnimController,
                              isPlaying: _isPlaying,
+                             onStateChanged: () => setState((){}),
                            );
                         },
                       ),
@@ -402,6 +404,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                         engine: _audioEngine,
                         vuAnim: _vuAnimController,
                         isPlaying: _isPlaying,
+                        onStateChanged: () => setState((){}),
                       ),
                     ),
                   ],
@@ -443,6 +446,7 @@ class _LiveTrackStrip extends StatefulWidget {
   final AudioEngineService engine;
   final AnimationController vuAnim;
   final bool isPlaying;
+  final VoidCallback? onStateChanged;
 
   const _LiveTrackStrip({
     required this.track,
@@ -450,6 +454,7 @@ class _LiveTrackStrip extends StatefulWidget {
     required this.engine,
     required this.vuAnim,
     required this.isPlaying,
+    this.onStateChanged,
     this.isMaster = false,
   });
 
@@ -458,15 +463,33 @@ class _LiveTrackStrip extends StatefulWidget {
 }
 
 class _LiveTrackStripState extends State<_LiveTrackStrip> {
-  // In a real Live Player, changes made here via drag might ONLY apply to the live session,
-  // or they might re-save to the Sequence. We will just talk to the AudioEngine.
+  late double _gain;
+  late double _pan;
+
+  @override
+  void initState() {
+    super.initState();
+    _gain = widget.isMaster 
+        ? 0.0 
+        : (widget.track.volume > 0 ? 20 * (math.log(widget.track.volume) / math.ln10) : -60.0);
+    _pan = widget.track.pan;
+  }
+
+  @override
+  void didUpdateWidget(_LiveTrackStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.track.id != widget.track.id) {
+       _gain = widget.isMaster 
+          ? 0.0 
+          : (widget.track.volume > 0 ? 20 * (math.log(widget.track.volume) / math.ln10) : -60.0);
+       _pan = widget.track.pan;
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
-    double currentGain = widget.track.volume;
-    
     return Container(
-      width: 80,
+      width: 100,
       margin: const EdgeInsets.only(right: 12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -479,22 +502,44 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           const SizedBox(height: 12),
           
           if (!widget.isMaster) ...[
+            const Text('Pan', style: TextStyle(fontSize: 10, color: Colors.white70)),
+            Slider(
+              value: _pan,
+              min: -1.0, max: 1.0,
+              onChanged: (v) {
+                setState(() => _pan = v);
+                widget.engine.setTrackPan(widget.track.id, v);
+              },
+              activeColor: Colors.white70,
+              inactiveColor: Colors.white24,
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 GestureDetector(
                   onTap: () {
                      setState(() {
-                        widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
+                        if (widget.isMaster) {
+                           widget.engine.setGlobalMute(!widget.track.mute);
+                           widget.track.mute = !widget.track.mute;
+                        } else {
+                           widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
+                           widget.track.mute = !widget.track.mute;
+                        }
                      });
+                     widget.onStateChanged?.call();
                   },
                   child: _miniBtn('M', widget.track.mute ? Colors.red : Colors.grey),
                 ),
                 GestureDetector(
                   onTap: () {
-                     setState(() {
-                        widget.engine.setTrackSolo(widget.track.id, !widget.track.solo);
-                     });
+                     if (!widget.isMaster) {
+                       setState(() {
+                          widget.engine.setTrackSolo(widget.track.id, !widget.track.solo);
+                          widget.track.solo = !widget.track.solo;
+                       });
+                       widget.onStateChanged?.call();
+                     }
                   },
                   child: _miniBtn('S', widget.track.solo ? Colors.yellow : Colors.grey),
                 ),
@@ -504,8 +549,12 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           ],
           
           Text(
-            currentGain > 1.0 ? '+${(currentGain * 10).toStringAsFixed(1)}' : (currentGain * 10).toStringAsFixed(1),
-            style: const TextStyle(fontSize: 10, color: Colors.white70),
+            _gain > 0 ? '+${_gain.toStringAsFixed(1)} dB' : '${_gain.toStringAsFixed(1)} dB',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: _gain == 0.0 ? Colors.greenAccent : Colors.white,
+            ),
           ),
           const SizedBox(height: 4),
           
@@ -513,19 +562,35 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('+12', style: TextStyle(fontSize: 8, color: Colors.white54)),
+                      Text('  0', style: TextStyle(fontSize: 8, color: Colors.greenAccent)),
+                      Text('-12', style: TextStyle(fontSize: 8, color: Colors.white54)),
+                      Text('-24', style: TextStyle(fontSize: 8, color: Colors.white54)),
+                      Text('-60', style: TextStyle(fontSize: 8, color: Colors.white54)),
+                    ],
+                  ),
+                ),
                 Expanded(
                   child: RotatedBox(
                     quarterTurns: 3,
                     child: Slider(
-                      min: 0.0,
-                      max: 2.0,
-                      value: currentGain,
+                      min: -60.0,
+                      max: 12.0,
+                      value: _gain,
                       onChanged: (v) {
                         setState(() {
+                           _gain = (v < 0.5 && v > -0.5) ? 0.0 : v;
+                           
+                           double linearVol = (math.pow(10, (_gain / 20))).toDouble();
                            if (widget.isMaster) {
-                             widget.engine.setGlobalVolume(v);
+                             widget.engine.setGlobalVolume(linearVol);
                            } else {
-                             widget.engine.setTrackVolume(widget.track.id, v);
+                             widget.engine.setTrackVolume(widget.track.id, linearVol);
                            }
                         });
                       },
@@ -534,7 +599,7 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                   ),
                 ),
                 Container(
-                  width: 10,
+                  width: 14,
                   margin: const EdgeInsets.symmetric(vertical: 24, horizontal: 2),
                   decoration: BoxDecoration(
                     color: Colors.black45,
@@ -545,13 +610,13 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                   child: AnimatedBuilder(
                     animation: widget.vuAnim,
                     builder: (context, child) {
+                      double normalizedGain = (_gain + 60) / 72.0;
+                      if (_gain <= -59.5) normalizedGain = 0.0;
+                      
                       double dynamicLevel = widget.isPlaying && !widget.track.mute 
-                          ? (currentGain / 2.0 * widget.vuAnim.value).clamp(0.0, 1.0) 
+                          ? (normalizedGain * widget.vuAnim.value).clamp(0.0, 1.0) 
                           : 0.0;
                           
-                      // If another track is soloed and this isn't, and it's not master, drop to 0 visually
-                      // (Logic omitted for brevity in UI dummy)
-                      
                       return FractionallySizedBox(
                         heightFactor: dynamicLevel,
                         child: Container(
