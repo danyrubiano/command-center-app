@@ -1,0 +1,60 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:command_center_app/core/models/setlist.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+
+class SetlistService {
+  static Future<Directory> _getSetlistDir() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final setlistsDir = Directory(p.join(docsDir.path, 'CommandCenter', 'Setlists'));
+    if (!await setlistsDir.exists()) {
+      await setlistsDir.create(recursive: true);
+    }
+    return setlistsDir;
+  }
+
+  static Future<List<Setlist>> getSavedSetlists() async {
+    try {
+      final dir = await _getSetlistDir();
+      final List<Setlist> list = [];
+      await for (var entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.json')) {
+          final content = await entity.readAsString();
+          final jsonMap = jsonDecode(content);
+          list.add(Setlist.fromJson(jsonMap));
+        }
+      }
+      return list;
+    } catch (e) {
+      print('Failed to load setlists: $e');
+      return [];
+    }
+  }
+
+  static Future<void> saveSetlist(Setlist setlist) async {
+    try {
+      final dir = await _getSetlistDir();
+      final file = File(p.join(dir.path, '${setlist.id}.json'));
+      final jsonString = jsonEncode(setlist.toJson());
+      await file.writeAsString(jsonString);
+    } catch (e) {
+      print('Failed to save setlist: $e');
+      throw Exception('Failed to save setlist: $e');
+    }
+  }
+
+  static Future<void> deleteSetlist(String id) async {
+    try {
+      final dir = await _getSetlistDir();
+      final file = File(p.join(dir.path, '$id.json'));
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      print('Failed to delete setlist: $e');
+      throw Exception('Failed to delete setlist: $e');
+    }
+  }
+}

@@ -19,6 +19,30 @@ class Track {
     this.isClickOrCues = false,
   });
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'filePath': filePath,
+    'volume': volume,
+    'pan': pan,
+    'mute': mute,
+    'solo': solo,
+    'isClickOrCues': isClickOrCues,
+  };
+
+  factory Track.fromJson(Map<String, dynamic> json) {
+    return Track(
+      id: json['id'],
+      name: json['name'],
+      filePath: json['filePath'],
+      volume: (json['volume'] ?? 1.0).toDouble(),
+      pan: (json['pan'] ?? 0.0).toDouble(),
+      mute: json['mute'] ?? false,
+      solo: json['solo'] ?? false,
+      isClickOrCues: json['isClickOrCues'] ?? false,
+    );
+  }
+
   // Simple factory for dynamic generation
   factory Track.fromFileName(String path, String fileName) {
     bool clickCues = _isSystemTrack(fileName);

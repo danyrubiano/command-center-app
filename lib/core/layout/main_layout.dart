@@ -4,6 +4,7 @@ import 'package:command_center_app/features/library/presentation/pages/library_p
 import 'package:command_center_app/features/player/presentation/pages/player_page.dart';
 import 'package:command_center_app/features/setlist/presentation/pages/setlist_builder_page.dart';
 import 'package:command_center_app/features/settings/presentation/pages/settings_page.dart';
+import 'package:command_center_app/core/models/setlist.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -14,12 +15,20 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
+  Setlist? _activeSetlist;
 
-  final List<Widget> _pages = const [
-    PlayerPage(),
-    SetlistBuilderPage(),
-    LibraryPage(),
-    SettingsPage(),
+  List<Widget> get _pages => [
+    PlayerPage(key: ValueKey(_activeSetlist?.id), setlist: _activeSetlist),
+    SetlistBuilderPage(
+      onSetlistActivated: (sl) {
+        setState(() {
+           _activeSetlist = sl;
+           _selectedIndex = 0; // Jump to Player
+        });
+      },
+    ),
+    const LibraryPage(),
+    const SettingsPage(),
   ];
 
   final List<String> _titles = const [
