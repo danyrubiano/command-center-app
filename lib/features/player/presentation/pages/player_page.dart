@@ -225,6 +225,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     if (_setlist.sequences.isNotEmpty && _currentSequenceIndex < _setlist.sequences.length) {
        currentSequence = _setlist.sequences[_currentSequenceIndex];
     }
+    int nextIndex = (_currentSequenceIndex + 1 < _setlist.sequences.length) ? _currentSequenceIndex + 1 : _currentSequenceIndex;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
