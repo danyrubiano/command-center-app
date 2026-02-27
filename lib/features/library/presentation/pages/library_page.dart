@@ -67,7 +67,12 @@ class _LibraryPageState extends State<LibraryPage> {
                onPressed: () async {
                   if (ctrl.text.trim().isNotEmpty && ctrl.text.trim() != sequence.name) {
                      try {
+                        String oldPath = sequence.folderPath;
                         final updated = await FileExtractionService.renameSequenceFolder(sequence, ctrl.text.trim());
+                        
+                        // Push global changes to any Setlists using this backend!
+                        await SetlistService.updateSequenceReferencesGlobal(oldPath, updated);
+                        
                         if (mounted) {
                            setState(() {
                               _sequences[index] = updated;

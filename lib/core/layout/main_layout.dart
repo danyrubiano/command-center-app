@@ -68,11 +68,12 @@ class _MainLayoutState extends State<MainLayout> {
     'GLOBAL SETTINGS',
   ];
 
-  void _onItemTapped(int index) {
+  void _onItemTapped(int index) async {
     setState(() {
       _selectedIndex = index;
     });
     Navigator.pop(context); // Close the drawer
+    await _loadLastPlayedSetlist(); // Keep the active setlist up-to-date across views
   }
 
   @override

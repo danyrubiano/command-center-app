@@ -75,7 +75,7 @@ class FileExtractionService {
     String sequenceName = p.basenameWithoutExtension(sourceFilePath);
     
     // Clean name a bit
-    sequenceName = sequenceName.replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), ' ').trim();
+    sequenceName = sequenceName.replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ').trim();
 
     // 2. Determine target directory
     final Directory docsDir = await getApplicationDocumentsDirectory();
@@ -171,7 +171,7 @@ class FileExtractionService {
     if (!await oldDir.exists()) throw Exception('Sequence folder does not exist');
     
     // Clean name
-    final safeName = newName.replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), ' ').trim();
+    final safeName = newName.replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ').trim();
     if (safeName.isEmpty) throw Exception('Invalid sequence name');
 
     final String targetDirPath = p.join(oldDir.parent.path, safeName);

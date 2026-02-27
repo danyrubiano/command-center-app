@@ -64,6 +64,6 @@ class Track {
 
   static String _cleanName(String name) {
     String n = name.split('.').first;
-    return n.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ').trim();
+    return n.replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ').trim();
   }
 }

@@ -58,6 +58,35 @@ class SetlistService {
     }
   }
 
+  /// Scans all saved setlists. If a setlist contains a sequence with [oldFolderPath],
+  /// its name, id, folderPath, and tracks are updated to match [updatedSequence].
+  static Future<void> updateSequenceReferencesGlobal(String oldFolderPath, Sequence updatedSequence) async {
+    try {
+      final list = await getSavedSetlists();
+      for (Setlist sl in list) {
+        bool changed = false;
+        
+        for (int i = 0; i < sl.sequences.length; i++) {
+           if (sl.sequences[i].folderPath == oldFolderPath) {
+              // Create a clone but retain the setlist's unique runtime ID for reordering
+              final originalId = sl.sequences[i].id; 
+              
+              sl.sequences[i] = Sequence.fromJson(updatedSequence.toJson());
+              sl.sequences[i].id = originalId; // keep the unique builder ID!
+              
+              changed = true;
+           }
+        }
+
+        if (changed) {
+           await saveSetlist(sl);
+        }
+      }
+    } catch (e) {
+      print('Failed to update Sequence references globally: $e');
+    }
+  }
+
   static Future<void> saveLastPlayedSetlistId(String id) async {
     try {
       final docsDir = await getApplicationDocumentsDirectory();
