@@ -8,11 +8,13 @@ import 'package:command_center_app/core/models/setlist.dart';
 import 'package:command_center_app/core/models/track.dart';
 import 'package:command_center_app/core/services/audio_engine_service.dart';
 import 'package:command_center_app/core/services/waveform_service.dart';
+import 'package:command_center_app/core/services/setlist_service.dart';
 
 class PlayerPage extends StatefulWidget {
   final Setlist? setlist;
+  final ValueChanged<Setlist>? onSetlistChanged;
 
-  const PlayerPage({super.key, this.setlist});
+  const PlayerPage({super.key, this.setlist, this.onSetlistChanged});
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -23,6 +25,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   
   late Setlist _setlist;
   int _currentSequenceIndex = 0;
+  List<Setlist> _availableSetlists = [];
   
   bool _isPlaying = false;
   Duration _currentPosition = Duration.zero;
@@ -46,6 +49,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     
     // Setup dummy Setlist if none passed, for immediate testing purposes
     _setlist = widget.setlist ?? Setlist(id: 'dummy', name: 'No Setlist Loaded');
+    _loadAvailableSetlists();
 
     _vuAnimController = AnimationController(
       vsync: this,
@@ -104,10 +108,17 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     _loadSequence(_setlist.sequences[nextIndex], startTransition: true);
   }
 
-  Future<void> _loadSequence(Sequence seq, {bool autoPlay = false, bool startTransition = false}) async {
+  Future<void> _loadAvailableSetlists() async {
+    final lists = await SetlistService.getSavedSetlists();
+    if (mounted) {
+      setState(() => _availableSetlists = lists);
+    }
+  }
+
+  Future<void> _loadSequence(Sequence sequence, {bool autoPlay = false, bool startTransition = false}) async {
     setState(() {
       _isExtractingWaveform = true;
-      _waveformMessage = 'Loading ${seq.name}...';
+      _waveformMessage = 'Loading ${sequence.name}...';
       _mergedWaveform = null;
     });
 
@@ -255,10 +266,39 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                           border: Border(right: BorderSide(color: Colors.white12)),
                         ),
                         child: Center(
-                          child: Text(
-                            'SETLIST: ${_setlist.name}\n${_currentSequenceIndex + 1}. ${currentSequence.name} [${currentSequence.detectedKey}]', 
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text('SETLIST: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                  DropdownButton<String>(
+                                    value: _setlist.id == 'dummy' ? null : _setlist.id,
+                                    dropdownColor: Theme.of(context).canvasColor,
+                                    icon: const Icon(Icons.arrow_drop_down, color: Colors.greenAccent),
+                                    hint: const Text('Select...', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                    items: _availableSetlists.map((sl) => DropdownMenuItem(
+                                      value: sl.id,
+                                      child: Text(sl.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.greenAccent, fontSize: 14)),
+                                    )).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        final target = _availableSetlists.firstWhere((s) => s.id == val);
+                                        widget.onSetlistChanged?.call(target);
+                                      }
+                                    },
+                                    underline: const SizedBox(),
+                                  ),
+                                ],
+                              ),
+                              if (currentSequence != null)
+                                Text(
+                                  '${_currentSequenceIndex + 1}. ${currentSequence.name} [${currentSequence.detectedKey}]', 
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+                                ),
+                            ],
                           ),
                         ),
                       ),

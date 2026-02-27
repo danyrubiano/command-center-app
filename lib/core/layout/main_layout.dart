@@ -5,6 +5,7 @@ import 'package:command_center_app/features/player/presentation/pages/player_pag
 import 'package:command_center_app/features/setlist/presentation/pages/setlist_builder_page.dart';
 import 'package:command_center_app/features/settings/presentation/pages/settings_page.dart';
 import 'package:command_center_app/core/models/setlist.dart';
+import 'package:command_center_app/core/services/setlist_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -17,10 +18,39 @@ class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
   Setlist? _activeSetlist;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadLastPlayedSetlist();
+  }
+
+  Future<void> _loadLastPlayedSetlist() async {
+     final lastId = await SetlistService.getLastPlayedSetlistId();
+     if (lastId != null) {
+        final lists = await SetlistService.getSavedSetlists();
+        for (var list in lists) {
+           if (list.id == lastId) {
+             if (mounted) setState(() => _activeSetlist = list);
+             break;
+           }
+        }
+     }
+  }
+
   List<Widget> get _pages => [
-    PlayerPage(key: ValueKey(_activeSetlist?.id), setlist: _activeSetlist),
+    PlayerPage(
+       key: ValueKey(_activeSetlist?.id), 
+       setlist: _activeSetlist,
+       onSetlistChanged: (sl) {
+          SetlistService.saveLastPlayedSetlistId(sl.id);
+          setState(() {
+             _activeSetlist = sl;
+          });
+       },
+    ),
     SetlistBuilderPage(
       onSetlistActivated: (sl) {
+        SetlistService.saveLastPlayedSetlistId(sl.id);
         setState(() {
            _activeSetlist = sl;
            _selectedIndex = 0; // Jump to Player

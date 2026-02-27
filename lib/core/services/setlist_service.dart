@@ -57,4 +57,27 @@ class SetlistService {
       throw Exception('Failed to delete setlist: $e');
     }
   }
+
+  static Future<void> saveLastPlayedSetlistId(String id) async {
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
+      await file.writeAsString(id);
+    } catch (e) {
+      print('Failed to save last played setlist id: $e');
+    }
+  }
+
+  static Future<String?> getLastPlayedSetlistId() async {
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
+      if (await file.exists()) {
+        return await file.readAsString();
+      }
+    } catch (e) {
+      print('Failed to get last played setlist id: $e');
+    }
+    return null;
+  }
 }

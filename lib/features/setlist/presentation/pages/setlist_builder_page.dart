@@ -232,21 +232,27 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Editing: ${_currentSetlist!.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Flexible(child: Text('Editing: ${_currentSetlist!.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis)),
                             IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.white54), onPressed: _editSequenceNameAndSettings),
                           ],
                         ),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             if (_currentSetlist!.sequences.isNotEmpty)
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.play_circle_fill, color: Colors.white),
-                                label: const Text('Load to Player', style: TextStyle(color: Colors.white)),
+                                label: const Flexible(child: Text('Load to Player', style: TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
                                 onPressed: () {
                                     if (widget.onSetlistActivated != null) {
                                        widget.onSetlistActivated!(_currentSetlist!);
@@ -254,10 +260,9 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                 },
                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                               ),
-                            const SizedBox(width: 8),
                             ElevatedButton.icon(
                               icon: const Icon(Icons.save, color: Colors.white),
-                              label: const Text('Save Setlist', style: TextStyle(color: Colors.white)),
+                              label: const Flexible(child: Text('Save Setlist', style: TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
                               onPressed: _saveCurrentSetlist,
                               style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
                             ),
