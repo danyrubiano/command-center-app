@@ -52,6 +52,43 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  void _renameSequence(Sequence sequence, int index) {
+      TextEditingController ctrl = TextEditingController(text: sequence.name);
+      showDialog(context: context, builder: (ctx) {
+         return AlertDialog(
+           title: const Text('Rename Sequence (Library)'),
+           content: TextField(
+               controller: ctrl, 
+               decoration: const InputDecoration(labelText: 'New Folder Name'),
+            ),
+           actions: [
+             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+             ElevatedButton(
+               onPressed: () async {
+                  if (ctrl.text.trim().isNotEmpty && ctrl.text.trim() != sequence.name) {
+                     try {
+                        final updated = await FileExtractionService.renameSequenceFolder(sequence, ctrl.text.trim());
+                        if (mounted) {
+                           setState(() {
+                              _sequences[index] = updated;
+                           });
+                        }
+                     } catch (e) {
+                        if (mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                     }
+                  }
+                  if (mounted) Navigator.pop(ctx);
+               },
+               child: const Text('Rename'),
+             ),
+           ],
+         );
+     });
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,8 +141,8 @@ class _LibraryPageState extends State<LibraryPage> {
                               Text('${seq.name} - ${seq.detectedKey}'),
                               IconButton(
                                 icon: const Icon(Icons.edit, size: 16, color: Colors.white54),
-                                onPressed: () {}, // Edit sequence name interaction
-                                tooltip: 'Rename Sequence',
+                                onPressed: () => _renameSequence(seq, index),
+                                tooltip: 'Rename Sequence Folder',
                               ),
                             ],
                           ),

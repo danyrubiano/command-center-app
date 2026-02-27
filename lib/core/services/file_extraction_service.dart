@@ -164,4 +164,51 @@ class FileExtractionService {
       throw Exception('Failed to process sequence file. The file may be corrupted, empty, or not a valid ZIP archive. Details: $e');
     }
   }
+
+  /// Renames the actual source directory for a sequence in the library. Returns the updated Sequence.
+  static Future<Sequence> renameSequenceFolder(Sequence sequence, String newName) async {
+    final Directory oldDir = Directory(sequence.folderPath);
+    if (!await oldDir.exists()) throw Exception('Sequence folder does not exist');
+    
+    // Clean name
+    final safeName = newName.replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), ' ').trim();
+    if (safeName.isEmpty) throw Exception('Invalid sequence name');
+
+    final String targetDirPath = p.join(oldDir.parent.path, safeName);
+    final Directory newDir = Directory(targetDirPath);
+    
+    if (await newDir.exists() && oldDir.path != newDir.path) {
+       throw Exception('A sequence with that name already exists in the library');
+    }
+
+    if (oldDir.path != newDir.path) {
+      await oldDir.rename(targetDirPath);
+    }
+    
+    List<Track> updatedTracks = sequence.tracks.map((t) {
+        String newFilePath = p.join(targetDirPath, p.basename(t.filePath));
+        // Using existing model values to prevent loss of data if we implement metadata later
+        return Track(
+           id: t.id,
+           name: t.name,
+           filePath: newFilePath,
+           isClickOrCues: t.isClickOrCues,
+           volumeDb: t.volumeDb,
+           pan: t.pan,
+           mute: t.mute,
+           solo: t.solo,
+        );
+    }).toList();
+
+    return Sequence(
+       id: safeName.toLowerCase().replaceAll(' ', '_'),
+       name: safeName,
+       folderPath: targetDirPath,
+       tracks: updatedTracks,
+       cueTags: sequence.cueTags,
+       detectedKey: sequence.detectedKey,
+       pauseAfterSeconds: sequence.pauseAfterSeconds,
+       pitchOverride: sequence.pitchOverride,
+    );
+  }
 }
