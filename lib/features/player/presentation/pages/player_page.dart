@@ -40,8 +40,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   int _transitionCountdown = 0;
   Timer? _transitionTimer;
 
-  // Shared VU logic for fader visuals
-  late AnimationController _vuAnimController;
+  // Real-time VU logic
+  double _currentVuPeak = 0.0;
 
   @override
   void initState() {
@@ -50,13 +50,6 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     // Setup dummy Setlist if none passed, for immediate testing purposes
     _setlist = widget.setlist ?? Setlist(id: 'dummy', name: 'No Setlist Loaded');
     _loadAvailableSetlists();
-
-    _vuAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-      lowerBound: 0.2,
-      upperBound: 1.0,
-    )..repeat(reverse: true);
 
     if (_setlist.sequences.isNotEmpty) {
       _loadSequence(_setlist.sequences[_currentSequenceIndex]);
@@ -67,10 +60,12 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         setState(() {
           _currentPosition = _audioEngine.currentPosition;
           _checkAutoTransition();
+          _updateVuPeak();
         });
       } else if (mounted && !_isPlaying) {
          setState(() {
            _currentPosition = _audioEngine.currentPosition;
+           _currentVuPeak = 0.0;
          });
       }
     });
@@ -80,6 +75,25 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     if (_totalDuration.inMilliseconds > 0 && 
         _currentPosition.inMilliseconds >= _totalDuration.inMilliseconds - 100) {
        _triggerAutoTransition();
+    }
+  }
+
+  void _updateVuPeak() {
+    if (_mergedWaveform == null || _totalDuration.inMilliseconds == 0 || !_isPlaying) {
+       _currentVuPeak = 0.0;
+       return;
+    }
+    double progress = _currentPosition.inMilliseconds / _totalDuration.inMilliseconds;
+    int index = (progress * _mergedWaveform!.length).floor();
+    index = index.clamp(0, _mergedWaveform!.length - 1);
+    
+    // Waveform pixel limits
+    int dataIdx = index * 2;
+    if (dataIdx + 1 < _mergedWaveform!.data.length) {
+       int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
+       double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+       // Simple low pass filter to bridge 50ms frames pleasantly
+       _currentVuPeak = (_currentVuPeak * 0.4) + (peak * 0.6);
     }
   }
 
@@ -218,7 +232,6 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   void dispose() {
     _timer?.cancel();
     _transitionTimer?.cancel();
-    _vuAnimController.dispose();
     _audioEngine.stopAndUnload();
     super.dispose();
   }
@@ -433,7 +446,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                              track: t, 
                              color: tColor, 
                              engine: _audioEngine,
-                             vuAnim: _vuAnimController,
+                             currentVuPeak: _currentVuPeak,
                              isPlaying: _isPlaying,
                              onStateChanged: () => setState((){}),
                            );
@@ -448,12 +461,12 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                         border: Border(left: BorderSide(color: Colors.white12, width: 2)),
                       ),
                       child: _LiveTrackStrip(
-                        track: Track(id: 'master', name: 'MASTER', filePath: ''), 
-                        color: Colors.white, 
-                        isMaster: true,
+                        track: Track(id: 'master', name: 'Master', filePath: '', isClickOrCues: false, volume: 1.0), 
+                        color: Colors.redAccent, 
                         engine: _audioEngine,
-                        vuAnim: _vuAnimController,
+                        currentVuPeak: _currentVuPeak,
                         isPlaying: _isPlaying,
+                        isMaster: true,
                         onStateChanged: () => setState((){}),
                       ),
                     ),
@@ -494,7 +507,7 @@ class _LiveTrackStrip extends StatefulWidget {
   final Color color;
   final bool isMaster;
   final AudioEngineService engine;
-  final AnimationController vuAnim;
+  final double currentVuPeak;
   final bool isPlaying;
   final VoidCallback? onStateChanged;
 
@@ -502,7 +515,7 @@ class _LiveTrackStrip extends StatefulWidget {
     required this.track,
     required this.color,
     required this.engine,
-    required this.vuAnim,
+    required this.currentVuPeak,
     required this.isPlaying,
     this.onStateChanged,
     this.isMaster = false,
@@ -697,14 +710,13 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                     border: Border.all(color: Colors.white12),
                   ),
                   alignment: Alignment.bottomCenter,
-                  child: AnimatedBuilder(
-                    animation: widget.vuAnim,
-                    builder: (context, child) {
+                  child: Builder(
+                    builder: (context) {
                       double normalizedGain = (_gain + 60) / 72.0;
                       if (_gain <= -59.5) normalizedGain = 0.0;
                       
                       double dynamicLevel = widget.isPlaying && !widget.track.mute 
-                          ? (normalizedGain * widget.vuAnim.value).clamp(0.0, 1.0) 
+                          ? (normalizedGain * widget.currentVuPeak).clamp(0.0, 1.0) 
                           : 0.0;
                           
                       return FractionallySizedBox(
