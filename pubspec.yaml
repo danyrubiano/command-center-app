@@ -41,6 +41,7 @@ dependencies:
   path: ^1.9.1
   just_waveform: ^0.0.7
   shared_preferences: ^2.5.4
+  wakelock_plus: ^1.4.0
 
 dev_dependencies:
   flutter_test:

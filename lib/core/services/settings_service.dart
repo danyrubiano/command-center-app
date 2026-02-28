@@ -19,6 +19,7 @@ class SettingsService {
   static const String _audioOutputDeviceNameKey = 'audio_output_device_name';
   static const String _clickTrackKeywordsKey = 'click_track_keywords';
   static const String _cueTrackKeywordsKey = 'cue_track_keywords';
+  static const String _preventScreenSleepKey = 'prevent_screen_sleep';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -99,5 +100,17 @@ class SettingsService {
   Future<void> setCueTrackKeywords(String keywords) async {
     if (_prefs == null) await init();
     await _prefs!.setString(_cueTrackKeywordsKey, keywords);
+  }
+
+  /// Gets the Prevent Screen Sleep preference
+  Future<bool> getPreventScreenSleep() async {
+    if (_prefs == null) await init();
+    return _prefs!.getBool(_preventScreenSleepKey) ?? true;
+  }
+
+  /// Sets the Prevent Screen Sleep preference
+  Future<void> setPreventScreenSleep(bool value) async {
+    if (_prefs == null) await init();
+    await _prefs!.setBool(_preventScreenSleepKey, value);
   }
 }

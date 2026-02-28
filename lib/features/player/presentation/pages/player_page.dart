@@ -9,6 +9,8 @@ import 'package:command_center_app/core/models/track.dart';
 import 'package:command_center_app/core/services/audio_engine_service.dart';
 import 'package:command_center_app/core/services/waveform_service.dart';
 import 'package:command_center_app/core/services/setlist_service.dart';
+import 'package:command_center_app/core/services/settings_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class PlayerPage extends StatefulWidget {
   final Setlist? setlist;
@@ -52,6 +54,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     // Setup dummy Setlist if none passed, for immediate testing purposes
     _setlist = widget.setlist ?? Setlist(id: 'dummy', name: 'No Setlist Loaded');
     _loadAvailableSetlists();
+    _setupWakelock();
 
     if (_setlist.sequences.isNotEmpty) {
       _loadSequence(_setlist.sequences[_currentSequenceIndex]);
@@ -72,6 +75,13 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
          });
       }
     });
+  }
+
+  Future<void> _setupWakelock() async {
+    final preventSleep = await SettingsService().getPreventScreenSleep();
+    if (preventSleep) {
+       WakelockPlus.enable();
+    }
   }
 
   void _checkAutoTransition() {
@@ -269,6 +279,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     _timer?.cancel();
     _transitionTimer?.cancel();
     _audioEngine.stopAndUnload();

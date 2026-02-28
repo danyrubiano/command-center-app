@@ -17,6 +17,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _audioDeviceName = 'Loading...';
   String _clickKeywords = 'Loading...';
   String _cueKeywords = 'Loading...';
+  bool _preventScreenSleep = true;
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final deviceName = await SettingsService().getAudioOutputDeviceName();
     final clickK = await SettingsService().getClickTrackKeywords();
     final cueK = await SettingsService().getCueTrackKeywords();
+    final preventSleep = await SettingsService().getPreventScreenSleep();
     
     if (mounted) {
       setState(() {
@@ -38,6 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _audioDeviceName = deviceName ?? 'System Default';
         _clickKeywords = clickK;
         _cueKeywords = cueK;
+        _preventScreenSleep = preventSleep;
       });
     }
   }
@@ -215,8 +218,13 @@ class _SettingsPageState extends State<SettingsPage> {
                  activeTrackColor: Theme.of(context).primaryColor,
                  title: const Text('Prevent Screen Sleep Status'),
                  subtitle: const Text('Keeps screen active during fullscreen live mode.'),
-                 value: true,
-                 onChanged: (bool val) {},
+                 value: _preventScreenSleep,
+                 onChanged: (bool val) async {
+                   setState(() {
+                     _preventScreenSleep = val;
+                   });
+                   await SettingsService().setPreventScreenSleep(val);
+                 },
                ),
             ]
           ),
