@@ -47,6 +47,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   double _masterVuPeak = 0.0;
   Map<String, double> _trackVuPeaks = {};
 
+  bool _preventSleepConfig = true;
+
   @override
   void initState() {
     super.initState();
@@ -78,9 +80,15 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   }
 
   Future<void> _setupWakelock() async {
-    final preventSleep = await SettingsService().getPreventScreenSleep();
-    if (preventSleep) {
-       WakelockPlus.enable();
+    _preventSleepConfig = await SettingsService().getPreventScreenSleep();
+    _updateWakelockState();
+  }
+
+  void _updateWakelockState() {
+    if (_preventSleepConfig && _isPlaying) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
     }
   }
 
@@ -206,6 +214,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         } else if (autoPlay) {
           _audioEngine.play();
           setState(() => _isPlaying = true);
+          _updateWakelockState();
         }
       }
     } catch (e) {
@@ -231,6 +240,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
             _audioEngine.seek(Duration.zero);
             _audioEngine.play();
             _isPlaying = true;
+            _updateWakelockState();
          }
        });
     });
@@ -246,6 +256,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     }
     setState(() {
       _isPlaying = !_isPlaying;
+      _updateWakelockState();
     });
   }
 
@@ -258,6 +269,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     setState(() {
       _isPlaying = false;
       _currentPosition = Duration.zero;
+      _updateWakelockState();
     });
   }
   
