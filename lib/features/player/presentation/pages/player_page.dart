@@ -614,35 +614,26 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              GestureDetector(
-                onTap: () {
-                   setState(() {
-                      if (widget.isMaster) {
-                         widget.engine.setGlobalMute(!widget.track.mute);
-                         widget.track.mute = !widget.track.mute;
-                      } else {
-                         widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
-                         widget.track.mute = !widget.track.mute;
-                      }
-                   });
-                   widget.onStateChanged?.call();
-                },
-                child: _miniBtn('M', Colors.red, active: widget.track.mute),
-              ),
+              _miniBtn('M', Colors.red, active: widget.isMaster ? widget.engine.globalMuted : widget.track.mute, onTap: () {
+                 setState(() {
+                    if (widget.isMaster) {
+                       widget.engine.setGlobalMute(!widget.engine.globalMuted);
+                    } else {
+                       widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
+                       widget.track.mute = !widget.track.mute;
+                    }
+                 });
+                 widget.onStateChanged?.call();
+              }),
               const SizedBox(width: 8),
               if (!widget.isMaster)
-                GestureDetector(
-                  onTap: () {
-                     if (!widget.isMaster) {
-                       setState(() {
-                          widget.engine.setTrackSolo(widget.track.id, !widget.track.solo);
-                          widget.track.solo = !widget.track.solo;
-                       });
-                       widget.onStateChanged?.call();
-                     }
-                  },
-                 child: _miniBtn('S', Colors.yellow, active: widget.track.solo),
-                ),
+                _miniBtn('S', Colors.yellow, active: widget.track.solo, onTap: () {
+                   setState(() {
+                      widget.engine.setTrackSolo(widget.track.id, !widget.track.solo);
+                      widget.track.solo = !widget.track.solo;
+                   });
+                   widget.onStateChanged?.call();
+                }),
             ],
           ),
           const SizedBox(height: 12),
@@ -762,21 +753,24 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
     );
   }
 
-  Widget _miniBtn(String label, Color color, {bool active = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: active ? color : color.withValues(alpha: 0.1),
-        border: Border.all(color: active ? color : color.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label, 
-        style: TextStyle(
-          color: active ? Colors.black : color, 
-          fontSize: 10, 
-          fontWeight: FontWeight.bold
-        )
+  Widget _miniBtn(String label, Color color, {bool active = false, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? color : color.withValues(alpha: 0.1),
+          border: Border.all(color: active ? color : color.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label, 
+          style: TextStyle(
+            color: active ? Colors.black : color, 
+            fontSize: 10, 
+            fontWeight: FontWeight.bold
+          )
+        ),
       ),
     );
   }
