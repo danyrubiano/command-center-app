@@ -466,6 +466,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                              engine: _audioEngine,
                              currentVuPeak: _trackVuPeaks[t.id] ?? 0.0,
                              isPlaying: _isPlaying,
+                             isMuted: t.mute,
+                             isSoloed: t.solo,
                              onStateChanged: () => setState((){}),
                            );
                         },
@@ -479,12 +481,14 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                         border: Border(left: BorderSide(color: Colors.white12, width: 2)),
                       ),
                       child: _LiveTrackStrip(
-                        track: Track(id: 'master', name: 'Master', filePath: '', isClickOrCues: false, volume: 1.0), 
-                        color: Colors.redAccent, 
+                        track: Track(id: 'master', name: 'Master', filePath: ''), 
+                        color: Colors.white, 
+                        isMaster: true,
                         engine: _audioEngine,
                         currentVuPeak: _masterVuPeak,
                         isPlaying: _isPlaying,
-                        isMaster: true,
+                        isMuted: _audioEngine.globalMuted,
+                        isSoloed: false,
                         onStateChanged: () => setState((){}),
                       ),
                     ),
@@ -527,6 +531,8 @@ class _LiveTrackStrip extends StatefulWidget {
   final AudioEngineService engine;
   final double currentVuPeak;
   final bool isPlaying;
+  final bool isMuted;
+  final bool isSoloed;
   final VoidCallback? onStateChanged;
 
   const _LiveTrackStrip({
@@ -535,6 +541,8 @@ class _LiveTrackStrip extends StatefulWidget {
     required this.engine,
     required this.currentVuPeak,
     required this.isPlaying,
+    required this.isMuted,
+    required this.isSoloed,
     this.onStateChanged,
     this.isMaster = false,
   });
@@ -614,24 +622,18 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _miniBtn('M', Colors.red, active: widget.isMaster ? widget.engine.globalMuted : widget.track.mute, onTap: () {
-                 setState(() {
-                    if (widget.isMaster) {
-                       widget.engine.setGlobalMute(!widget.engine.globalMuted);
-                    } else {
-                       widget.engine.setTrackMute(widget.track.id, !widget.track.mute);
-                       widget.track.mute = !widget.track.mute;
-                    }
-                 });
+              _miniBtn('M', Colors.red, active: widget.isMaster ? widget.engine.globalMuted : widget.isMuted, onTap: () {
+                 if (widget.isMaster) {
+                    widget.engine.setGlobalMute(!widget.engine.globalMuted);
+                 } else {
+                    widget.engine.setTrackMute(widget.track.id, !widget.isMuted);
+                 }
                  widget.onStateChanged?.call();
               }),
               const SizedBox(width: 8),
               if (!widget.isMaster)
-                _miniBtn('S', Colors.yellow, active: widget.track.solo, onTap: () {
-                   setState(() {
-                      widget.engine.setTrackSolo(widget.track.id, !widget.track.solo);
-                      widget.track.solo = !widget.track.solo;
-                   });
+                _miniBtn('S', Colors.yellow, active: widget.isSoloed, onTap: () {
+                   widget.engine.setTrackSolo(widget.track.id, !widget.isSoloed);
                    widget.onStateChanged?.call();
                 }),
             ],
