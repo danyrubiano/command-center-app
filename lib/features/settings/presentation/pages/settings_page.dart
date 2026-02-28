@@ -12,6 +12,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String _currentStoragePath = 'Loading...';
+  bool _autoRouteClickCues = true;
 
   @override
   void initState() {
@@ -21,9 +22,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadCurrentPath() async {
     final dir = await SettingsService().getStorageDirectory();
+    final autoRoute = await SettingsService().getAutoRouteClickCues();
     if (mounted) {
       setState(() {
         _currentStoragePath = dir.path;
+        _autoRouteClickCues = autoRoute;
       });
     }
   }
@@ -64,8 +67,13 @@ class _SettingsPageState extends State<SettingsPage> {
                  activeTrackColor: Theme.of(context).primaryColor,
                  title: const Text('Auto-Route In-Ear Monitors (Click/Cues)'),
                  subtitle: const Text('Automatically hard-pans Click and Cues to Right Channel, and musical tracks to Left Channel when loading a sequence.'),
-                 value: true,
-                 onChanged: (bool val) {},
+                 value: _autoRouteClickCues,
+                 onChanged: (bool val) async {
+                   setState(() {
+                     _autoRouteClickCues = val;
+                   });
+                   await SettingsService().setAutoRouteClickCues(val);
+                 },
                ),
                ListTile(
                  title: const Text('Audio Output Device'),

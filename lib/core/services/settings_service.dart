@@ -14,6 +14,7 @@ class SettingsService {
   SharedPreferences? _prefs;
 
   static const String _customStoragePathKey = 'custom_storage_path';
+  static const String _autoRouteClickCuesKey = 'auto_route_click_cues';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -45,5 +46,17 @@ class SettingsService {
   Future<String?> getRawCustomStoragePath() async {
     if (_prefs == null) await init();
     return _prefs!.getString(_customStoragePathKey);
+  }
+
+  /// Gets the Auto-Route In-Ear Monitors preference
+  Future<bool> getAutoRouteClickCues() async {
+    if (_prefs == null) await init();
+    return _prefs!.getBool(_autoRouteClickCuesKey) ?? true;
+  }
+
+  /// Sets the Auto-Route In-Ear Monitors preference
+  Future<void> setAutoRouteClickCues(bool value) async {
+    if (_prefs == null) await init();
+    await _prefs!.setBool(_autoRouteClickCuesKey, value);
   }
 }

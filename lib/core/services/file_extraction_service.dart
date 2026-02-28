@@ -22,6 +22,7 @@ class FileExtractionService {
     }
 
     List<Sequence> loadedSequences = [];
+    bool autoRoute = await SettingsService().getAutoRouteClickCues();
     
     // Read subdirectories (each subdirectory is a Sequence)
     await for (var entity in baseDir.list(recursive: false)) {
@@ -33,7 +34,7 @@ class FileExtractionService {
           if (file is File) {
              final ext = p.extension(file.path).toLowerCase();
              if (ext == '.wav' || ext == '.mp3' || ext == '.ogg' || ext == '.flac') {
-               tracks.add(Track.fromFileName(file.path, p.basename(file.path)));
+               tracks.add(Track.fromFileName(file.path, p.basename(file.path), autoRoute: autoRoute));
              }
           }
         }
@@ -80,6 +81,7 @@ class FileExtractionService {
 
     // 2. Determine target directory
     final Directory docsDir = await SettingsService().getStorageDirectory();
+    final bool autoRoute = await SettingsService().getAutoRouteClickCues();
     final String targetDirPath = p.join(docsDir.path, 'CommandCenter', 'Sequences', sequenceName);
     final Directory targetDir = Directory(targetDirPath);
     
@@ -125,7 +127,7 @@ class FileExtractionService {
              outputStream.close();
              
              // Generate Track Object
-             extractedTracks.add(Track.fromFileName(outputFilePath, outputFileName));
+             extractedTracks.add(Track.fromFileName(outputFilePath, outputFileName, autoRoute: autoRoute));
              print('Successfully extracted: $outputFileName');
            } catch (e) {
              print('Failed to write stream for $outputFileName: $e');

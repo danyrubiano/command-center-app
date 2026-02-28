@@ -44,14 +44,20 @@ class Track {
   }
 
   // Simple factory for dynamic generation
-  factory Track.fromFileName(String path, String fileName) {
+  factory Track.fromFileName(String path, String fileName, {bool autoRoute = true}) {
     bool clickCues = _isSystemTrack(fileName);
+    double assignedPan = 0.0;
+    
+    if (autoRoute) {
+       assignedPan = clickCues ? 1.0 : -1.0; 
+    }
+    
     return Track(
       id: fileName,
       name: _cleanName(fileName),
       filePath: path,
       isClickOrCues: clickCues,
-      pan: clickCues ? 1.0 : -1.0, // Auto route simple logic
+      pan: assignedPan,
     );
   }
 
