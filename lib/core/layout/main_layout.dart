@@ -6,6 +6,7 @@ import 'package:command_center_app/features/setlist/presentation/pages/setlist_b
 import 'package:command_center_app/features/settings/presentation/pages/settings_page.dart';
 import 'package:command_center_app/core/models/setlist.dart';
 import 'package:command_center_app/core/services/setlist_service.dart';
+import 'package:window_manager/window_manager.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -14,14 +15,43 @@ class MainLayout extends StatefulWidget {
   State<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends State<MainLayout> with WindowListener {
   int _selectedIndex = 0;
   Setlist? _activeSetlist;
+  bool _isFullScreen = false;
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
+    _initFullScreen();
     _loadLastPlayedSetlist();
+  }
+
+  void _initFullScreen() async {
+    bool isFull = await windowManager.isFullScreen();
+    if (mounted) setState(() => _isFullScreen = isFull);
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted) setState(() => _isFullScreen = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted) setState(() => _isFullScreen = false);
+  }
+
+  void _toggleFullScreen() async {
+    bool isFull = await windowManager.isFullScreen();
+    await windowManager.setFullScreen(!isFull);
   }
 
   Future<void> _loadLastPlayedSetlist() async {
@@ -82,7 +112,12 @@ class _MainLayoutState extends State<MainLayout> {
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         actions: _selectedIndex == 0 
-            ? [IconButton(icon: const Icon(Icons.fullscreen), onPressed: () {})] 
+            ? [
+                IconButton(
+                  icon: Icon(_isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen), 
+                  onPressed: _toggleFullScreen,
+                )
+              ] 
             : null,
       ),
       drawer: Drawer(

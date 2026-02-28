@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
 
+import 'package:window_manager/window_manager.dart';
+
 import 'core/theme/dark_theme.dart';
 import 'core/layout/main_layout.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    title: 'Command Center',
+    center: true,
+  );
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const CommandCenterApp());
 }
 
