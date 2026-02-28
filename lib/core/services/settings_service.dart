@@ -17,6 +17,8 @@ class SettingsService {
   static const String _autoRouteClickCuesKey = 'auto_route_click_cues';
   static const String _audioOutputDeviceIdKey = 'audio_output_device_id';
   static const String _audioOutputDeviceNameKey = 'audio_output_device_name';
+  static const String _clickTrackKeywordsKey = 'click_track_keywords';
+  static const String _cueTrackKeywordsKey = 'cue_track_keywords';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -73,5 +75,29 @@ class SettingsService {
     if (_prefs == null) await init();
     await _prefs!.setInt(_audioOutputDeviceIdKey, id);
     await _prefs!.setString(_audioOutputDeviceNameKey, name);
+  }
+
+  /// Gets Click Track Keywords
+  Future<String> getClickTrackKeywords() async {
+    if (_prefs == null) await init();
+    return _prefs!.getString(_clickTrackKeywordsKey) ?? 'click, clk, metronome';
+  }
+
+  /// Sets Click Track Keywords
+  Future<void> setClickTrackKeywords(String keywords) async {
+    if (_prefs == null) await init();
+    await _prefs!.setString(_clickTrackKeywordsKey, keywords);
+  }
+
+  /// Gets Cue Track Keywords
+  Future<String> getCueTrackKeywords() async {
+    if (_prefs == null) await init();
+    return _prefs!.getString(_cueTrackKeywordsKey) ?? 'cue, cues, guide, guider, guia, vocal, english';
+  }
+
+  /// Sets Cue Track Keywords
+  Future<void> setCueTrackKeywords(String keywords) async {
+    if (_prefs == null) await init();
+    await _prefs!.setString(_cueTrackKeywordsKey, keywords);
   }
 }

@@ -15,6 +15,8 @@ class _SettingsPageState extends State<SettingsPage> {
   String _currentStoragePath = 'Loading...';
   bool _autoRouteClickCues = true;
   String _audioDeviceName = 'Loading...';
+  String _clickKeywords = 'Loading...';
+  String _cueKeywords = 'Loading...';
 
   @override
   void initState() {
@@ -26,12 +28,16 @@ class _SettingsPageState extends State<SettingsPage> {
     final dir = await SettingsService().getStorageDirectory();
     final autoRoute = await SettingsService().getAutoRouteClickCues();
     final deviceName = await SettingsService().getAudioOutputDeviceName();
+    final clickK = await SettingsService().getClickTrackKeywords();
+    final cueK = await SettingsService().getCueTrackKeywords();
     
     if (mounted) {
       setState(() {
         _currentStoragePath = dir.path;
         _autoRouteClickCues = autoRoute;
         _audioDeviceName = deviceName ?? 'System Default';
+        _clickKeywords = clickK;
+        _cueKeywords = cueK;
       });
     }
   }
@@ -101,6 +107,46 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     );
   }
+  Future<void> _editKeywords(bool isClick) async {
+    final title = isClick ? 'Click Track Keywords' : 'Cue Track Keywords';
+    final initialValue = isClick ? _clickKeywords : _cueKeywords;
+    final controller = TextEditingController(text: initialValue);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Edit $title'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Comma separated keywords',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx), 
+              child: const Text('Cancel')
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text), 
+              child: const Text('Save')
+            ),
+          ]
+        );
+      }
+    );
+
+    if (result != null) {
+      if (isClick) {
+        await SettingsService().setClickTrackKeywords(result);
+        if (mounted) setState(() => _clickKeywords = result);
+      } else {
+        await SettingsService().setCueTrackKeywords(result);
+        if (mounted) setState(() => _cueKeywords = result);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,15 +195,15 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
                ListTile(
                  title: const Text('Click Track Keywords'),
-                 subtitle: const Text('click, clk, metronome'),
+                 subtitle: Text(_clickKeywords, style: const TextStyle(color: Colors.white54, fontSize: 12)),
                  trailing: const Icon(Icons.edit, size: 16),
-                 onTap: () {},
+                 onTap: () => _editKeywords(true),
                ),
                ListTile(
                  title: const Text('Cue Track Keywords'),
-                 subtitle: const Text('cues, guide, vocal, english'),
+                 subtitle: Text(_cueKeywords, style: const TextStyle(color: Colors.white54, fontSize: 12)),
                  trailing: const Icon(Icons.edit, size: 16),
-                 onTap: () {},
+                 onTap: () => _editKeywords(false),
                ),
             ]
           ),
