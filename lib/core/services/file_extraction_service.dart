@@ -7,12 +7,13 @@ import 'package:path/path.dart' as p;
 
 import '../models/sequence.dart';
 import '../models/track.dart';
+import 'package:command_center_app/core/services/settings_service.dart';
 
 class FileExtractionService {
   
   /// Scans the local app directory for existing extracted sequences and reconstructs them into memory on app boot.
   static Future<List<Sequence>> loadSavedSequences() async {
-    final Directory docsDir = await getApplicationDocumentsDirectory();
+    final Directory docsDir = await SettingsService().getStorageDirectory();
     final String baseDirPath = p.join(docsDir.path, 'CommandCenter', 'Sequences');
     final Directory baseDir = Directory(baseDirPath);
     
@@ -78,7 +79,7 @@ class FileExtractionService {
     sequenceName = sequenceName.replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ').trim();
 
     // 2. Determine target directory
-    final Directory docsDir = await getApplicationDocumentsDirectory();
+    final Directory docsDir = await SettingsService().getStorageDirectory();
     final String targetDirPath = p.join(docsDir.path, 'CommandCenter', 'Sequences', sequenceName);
     final Directory targetDir = Directory(targetDirPath);
     

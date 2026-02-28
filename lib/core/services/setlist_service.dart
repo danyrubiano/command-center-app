@@ -4,11 +4,12 @@ import 'dart:io';
 import 'package:command_center_app/core/models/setlist.dart';
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:command_center_app/core/services/settings_service.dart';
 import 'package:path/path.dart' as p;
 
 class SetlistService {
   static Future<Directory> _getSetlistDir() async {
-    final docsDir = await getApplicationDocumentsDirectory();
+    final docsDir = await SettingsService().getStorageDirectory();
     final setlistsDir = Directory(p.join(docsDir.path, 'CommandCenter', 'Setlists'));
     if (!await setlistsDir.exists()) {
       await setlistsDir.create(recursive: true);
@@ -92,7 +93,7 @@ class SetlistService {
 
   static Future<void> saveLastPlayedSetlistId(String id) async {
     try {
-      final docsDir = await getApplicationDocumentsDirectory();
+      final docsDir = await SettingsService().getStorageDirectory();
       final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
       await file.writeAsString(id);
     } catch (e) {
@@ -102,7 +103,7 @@ class SetlistService {
 
   static Future<String?> getLastPlayedSetlistId() async {
     try {
-      final docsDir = await getApplicationDocumentsDirectory();
+      final docsDir = await SettingsService().getStorageDirectory();
       final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
       if (await file.exists()) {
         return await file.readAsString();

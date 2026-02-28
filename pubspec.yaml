@@ -40,6 +40,7 @@ dependencies:
   flutter_soloud: ^3.4.10
   path: ^1.9.1
   just_waveform: ^0.0.7
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
