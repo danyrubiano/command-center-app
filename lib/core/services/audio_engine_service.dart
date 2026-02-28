@@ -1,6 +1,6 @@
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:command_center_app/core/models/sequence.dart';
-import 'package:command_center_app/core/models/track.dart';
+import 'package:command_center_app/core/services/settings_service.dart';
 
 class AudioEngineService {
   static final AudioEngineService _instance = AudioEngineService._internal();
@@ -31,7 +31,18 @@ class AudioEngineService {
     try {
       await SoLoud.instance.init();
       _isInitialized = true;
-      print('SoLoud Audio Engine Initialized!');
+      
+      // Load saved output device
+      final savedDeviceName = await SettingsService().getAudioOutputDeviceName();
+      if (savedDeviceName != null) {
+        final devices = SoLoud.instance.listPlaybackDevices();
+        for (var device in devices) {
+          if (device.name == savedDeviceName) {
+            SoLoud.instance.changeDevice(newDevice: device);
+            break;
+          }
+        }
+      }
     } catch (e) {
       print('Failed to initialize SoLoud: $e');
     }

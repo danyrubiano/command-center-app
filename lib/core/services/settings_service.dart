@@ -15,6 +15,8 @@ class SettingsService {
 
   static const String _customStoragePathKey = 'custom_storage_path';
   static const String _autoRouteClickCuesKey = 'auto_route_click_cues';
+  static const String _audioOutputDeviceIdKey = 'audio_output_device_id';
+  static const String _audioOutputDeviceNameKey = 'audio_output_device_name';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -58,5 +60,18 @@ class SettingsService {
   Future<void> setAutoRouteClickCues(bool value) async {
     if (_prefs == null) await init();
     await _prefs!.setBool(_autoRouteClickCuesKey, value);
+  }
+
+  /// Gets the preferred Audio Output Device name, if any
+  Future<String?> getAudioOutputDeviceName() async {
+    if (_prefs == null) await init();
+    return _prefs!.getString(_audioOutputDeviceNameKey);
+  }
+
+  /// Sets the preferred Audio Output Device 
+  Future<void> setAudioOutputDevice(int id, String name) async {
+    if (_prefs == null) await init();
+    await _prefs!.setInt(_audioOutputDeviceIdKey, id);
+    await _prefs!.setString(_audioOutputDeviceNameKey, name);
   }
 }

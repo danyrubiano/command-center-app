@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:command_center_app/core/services/settings_service.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_soloud/flutter_soloud.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -13,6 +14,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   String _currentStoragePath = 'Loading...';
   bool _autoRouteClickCues = true;
+  String _audioDeviceName = 'Loading...';
 
   @override
   void initState() {
@@ -23,10 +25,13 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadCurrentPath() async {
     final dir = await SettingsService().getStorageDirectory();
     final autoRoute = await SettingsService().getAutoRouteClickCues();
+    final deviceName = await SettingsService().getAudioOutputDeviceName();
+    
     if (mounted) {
       setState(() {
         _currentStoragePath = dir.path;
         _autoRouteClickCues = autoRoute;
+        _audioDeviceName = deviceName ?? 'System Default';
       });
     }
   }
@@ -40,6 +45,61 @@ class _SettingsPageState extends State<SettingsPage> {
       await SettingsService().setCustomStoragePath(selectedDirectory);
       await _loadCurrentPath();
     }
+  }
+
+  Future<void> _pickAudioDevice() async {
+    List<PlaybackDevice> devices = [];
+    try {
+      devices = SoLoud.instance.listPlaybackDevices();
+    } catch (e) {
+      print('Failed to list devices: $e');
+    }
+
+    if (devices.isEmpty) return;
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select Audio Output Device', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: devices.length,
+                  itemBuilder: (ctx, idx) {
+                    final device = devices[idx];
+                    return ListTile(
+                      title: Text(device.name),
+                      trailing: device.isDefault ? const Icon(Icons.star, size: 16, color: Colors.amber) : null,
+                      onTap: () async {
+                        try {
+                           SoLoud.instance.changeDevice(newDevice: device);
+                           await SettingsService().setAudioOutputDevice(device.id, device.name);
+                           setState(() {
+                             _audioDeviceName = device.name;
+                           });
+                        } catch (e) {
+                           print('Failed changing output device manually to ${device.name}: $e');
+                        }
+                        if (context.mounted) Navigator.pop(ctx);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    );
   }
 
   @override
@@ -77,9 +137,9 @@ class _SettingsPageState extends State<SettingsPage> {
                ),
                ListTile(
                  title: const Text('Audio Output Device'),
-                 subtitle: const Text('MacBook Pro Speakers'),
-                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                 onTap: () {},
+                 subtitle: Text(_audioDeviceName),
+                 trailing: const Icon(Icons.settings_input_component, size: 20),
+                 onTap: _pickAudioDevice,
                ),
             ]
           ),
