@@ -21,17 +21,17 @@ class WaveformService {
     final sequenceDir = p.dirname(musicTracks.first.filePath);
     final mergedWaveFile = File(p.join(sequenceDir, 'merged_waveform.wave'));
 
-    // If we already have the merged waveform cached, just return it.
+    // If we already have the merged waveform cached, assume we have the stems too
     if (mergedWaveFile.existsSync()) {
       onProgress?.call(1.0);
       return await JustWaveform.parse(mergedWaveFile);
     }
 
-    List<Waveform> extractedWaveforms = [];
+    List<Waveform> extractedMusicWaveforms = [];
     
-    // Extract individual waveforms
-    for (int i = 0; i < musicTracks.length; i++) {
-        final track = musicTracks[i];
+    // Extract individual waveforms (including click and cues so they have VU meters)
+    for (int i = 0; i < sequence.tracks.length; i++) {
+        final track = sequence.tracks[i];
         final trackFile = File(track.filePath);
         final waveFile = File(p.join(sequenceDir, '${track.name}.wave'));
         
@@ -41,14 +41,13 @@ class WaveformService {
           final stream = JustWaveform.extract(
             audioInFile: trackFile,
             waveOutFile: waveFile,
-            zoom: const WaveformZoom.pixelsPerSecond(50), // 50 pixels per second is standard detail
+            zoom: const WaveformZoom.pixelsPerSecond(50), 
           );
           
           stream.listen((progress) {
-            // Overall progress calculation:
-            // Math: previous tracks completion + current track progress / total tracks
             double currentProgress = progress.progress;
-            double overallProgress = (i + currentProgress) / (musicTracks.length + 1); // +1 for the merge step
+            // Weighted progress based on total tracks to extract + 1 for merge
+            double overallProgress = (i + currentProgress) / (sequence.tracks.length + 1);
             onProgress?.call(overallProgress);
             
             if (progress.waveform != null) {
@@ -61,21 +60,22 @@ class WaveformService {
           });
           
           final wave = await completer.future;
-          extractedWaveforms.add(wave);
+          if (!track.isClickOrCues) extractedMusicWaveforms.add(wave);
         } else {
-          extractedWaveforms.add(await JustWaveform.parse(waveFile));
+          final parsed = await JustWaveform.parse(waveFile);
+          if (!track.isClickOrCues) extractedMusicWaveforms.add(parsed);
         }
     }
     
-    onProgress?.call((musicTracks.length) / (musicTracks.length + 1));
+    onProgress?.call((sequence.tracks.length) / (sequence.tracks.length + 1));
 
-    // Merge them into a single waveform
-    final merged = _mergeWaveforms(extractedWaveforms);
+    // Merge only the music waveforms into a single waveform
+    final merged = _mergeWaveforms(extractedMusicWaveforms);
     
     // Save the merged waveform header/data so we can parse it from disk next time.
     final bytes = BytesBuilder();
     // Reconstruct the audiowaveform header (20 bytes)
-    final topWave = extractedWaveforms.first;
+    final topWave = extractedMusicWaveforms.first;
     final headerList = Uint32List(5);
     headerList[0] = topWave.version;
     headerList[1] = 0; // flags (0 = 16 bit)
@@ -132,11 +132,9 @@ class WaveformService {
     );
   }
 
-  /// Exports a dictionary mapping Track IDs to their individual Waveforms for independent real-time tracking
   static Future<Map<String, Waveform>> getTrackWaveforms(Sequence sequence) async {
     Map<String, Waveform> map = {};
     for (var t in sequence.tracks) {
-      if (t.isClickOrCues) continue; // Cues don't get waveform extraction right now
       final sequenceDir = p.dirname(t.filePath);
       final waveFile = File(p.join(sequenceDir, '${t.name}.wave'));
       if (waveFile.existsSync()) {

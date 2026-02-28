@@ -91,26 +91,47 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     
     // Master Peak based on merged waveform
     if (_mergedWaveform != null) {
-      int index = (progress * _mergedWaveform!.length).floor().clamp(0, _mergedWaveform!.length - 1);
-      int dataIdx = index * 2;
-      if (dataIdx + 1 < _mergedWaveform!.data.length) {
-         int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
-         double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
-         _masterVuPeak = (_masterVuPeak * 0.4) + (peak * 0.6);
+      if (_audioEngine.globalMuted) {
+         _masterVuPeak = 0.0;
+      } else {
+         int index = (progress * _mergedWaveform!.length).floor().clamp(0, _mergedWaveform!.length - 1);
+         int dataIdx = index * 2;
+         if (dataIdx + 1 < _mergedWaveform!.data.length) {
+            int maxVal = _mergedWaveform!.data[dataIdx + 1].abs();
+            double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+            _masterVuPeak = (_masterVuPeak * 0.4) + (peak * 0.6);
+         }
       }
     }
 
     // Individual Track Peaks
-    for (var entry in _trackWaveforms.entries) {
-       final wf = entry.value;
-       int index = (progress * wf.length).floor().clamp(0, wf.length - 1);
-       int dataIdx = index * 2;
-       if (dataIdx + 1 < wf.data.length) {
-          int maxVal = wf.data[dataIdx + 1].abs();
-          double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
-          double prev = _trackVuPeaks[entry.key] ?? 0.0;
-          _trackVuPeaks[entry.key] = (prev * 0.4) + (peak * 0.6);
-       }
+    if (_currentSequenceIndex >= 0 && _currentSequenceIndex < _setlist.sequences.length) {
+      final currentSeq = _setlist.sequences[_currentSequenceIndex];
+      bool anySolo = currentSeq.tracks.any((t) => t.solo);
+      
+      for (var entry in _trackWaveforms.entries) {
+         final trackId = entry.key;
+         
+         // Lookup explicitly from Sequence state to enforce visual silence on muted/soloed tracks
+         final trackList = currentSeq.tracks.where((t) => t.id == trackId);
+         if (trackList.isNotEmpty) {
+             final track = trackList.first;
+             if (track.mute || (anySolo && !track.solo)) {
+                _trackVuPeaks[trackId] = 0.0;
+                continue;
+             }
+         }
+  
+         final wf = entry.value;
+         int index = (progress * wf.length).floor().clamp(0, wf.length - 1);
+         int dataIdx = index * 2;
+         if (dataIdx + 1 < wf.data.length) {
+            int maxVal = wf.data[dataIdx + 1].abs();
+            double peak = (maxVal / 32767.0).clamp(0.0, 1.0);
+            double prev = _trackVuPeaks[entry.key] ?? 0.0;
+            _trackVuPeaks[entry.key] = (prev * 0.4) + (peak * 0.6);
+         }
+      }
     }
   }
 
