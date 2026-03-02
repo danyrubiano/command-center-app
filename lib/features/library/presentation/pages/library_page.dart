@@ -85,7 +85,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         }
                      }
                   }
-                  if (mounted) Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx);
                },
                child: const Text('Rename'),
              ),

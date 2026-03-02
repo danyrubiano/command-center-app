@@ -61,7 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       devices = SoLoud.instance.listPlaybackDevices();
     } catch (e) {
-      print('Failed to list devices: $e');
+      debugPrint('Failed to list devices: $e');
     }
 
     if (devices.isEmpty) return;
@@ -96,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
                              _audioDeviceName = device.name;
                            });
                         } catch (e) {
-                           print('Failed changing output device manually to ${device.name}: $e');
+                           debugPrint('Failed changing output device manually to ${device.name}: $e');
                         }
                         if (context.mounted) Navigator.pop(ctx);
                       },

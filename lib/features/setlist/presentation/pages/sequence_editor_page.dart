@@ -29,7 +29,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
   String _waveformMessage = 'Loading sequence...';
   
   double _masterVuPeak = 0.0;
-  Map<String, double> _trackVuPeaks = {};
+  final Map<String, double> _trackVuPeaks = {};
   
   late List<CueTag> _cueTags;
 
@@ -506,7 +506,7 @@ class _TimelinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (totalDuration.inMilliseconds == 0) return;
 
-    final paintBackground = Paint()..color = Colors.blueAccent.withOpacity(0.1);
+    final paintBackground = Paint()..color = Colors.blueAccent.withValues(alpha: 0.1);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paintBackground);
 
     // Calculate progression percentage
@@ -515,7 +515,7 @@ class _TimelinePainter extends CustomPainter {
     
     // Draw Generated Background Audio Waveform
     final paintWavePlayed = Paint()
-      ..color = Colors.blueAccent.withOpacity(0.8)
+      ..color = Colors.blueAccent.withValues(alpha: 0.8)
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
       

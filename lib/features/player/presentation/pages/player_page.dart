@@ -45,7 +45,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   // Real-time VU logic
   double _masterVuPeak = 0.0;
-  Map<String, double> _trackVuPeaks = {};
+  final Map<String, double> _trackVuPeaks = {};
 
   bool _preventSleepConfig = true;
 
@@ -367,12 +367,11 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                   ),
                                 ],
                               ),
-                              if (currentSequence != null)
-                                Text(
-                                  '${_currentSequenceIndex + 1}. ${currentSequence.name} [${currentSequence.detectedKey}]', 
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
-                                ),
+                              Text(
+                                '${_currentSequenceIndex + 1}. ${currentSequence.name} [${currentSequence.detectedKey}]', 
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+                              ),
                             ],
                           ),
                         ),

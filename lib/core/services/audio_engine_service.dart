@@ -1,6 +1,7 @@
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:command_center_app/core/services/settings_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AudioEngineService {
   static final AudioEngineService _instance = AudioEngineService._internal();
@@ -44,13 +45,13 @@ class AudioEngineService {
         }
       }
     } catch (e) {
-      print('Failed to initialize SoLoud: $e');
+      debugPrint('Failed to initialize SoLoud: $e');
     }
   }
 
   /// Loads a Sequence's tracks into memory, ready for playback.
   Future<void> loadSequence(Sequence sequence) async {
-    print('AudioEngineService: Loading sequence ${sequence.name} with ${sequence.tracks.length} tracks.');
+    debugPrint('AudioEngineService: Loading sequence ${sequence.name} with ${sequence.tracks.length} tracks.');
     if (!_isInitialized) await init();
     
     // Stop and unload previous sequence
@@ -60,21 +61,21 @@ class AudioEngineService {
 
     for (var track in sequence.tracks) {
       try {
-        print('AudioEngineService: Loading file from ${track.filePath}');
+        debugPrint('AudioEngineService: Loading file from ${track.filePath}');
         final source = await SoLoud.instance.loadFile(track.filePath);
         _loadedSources[track.id] = source;
-        print('AudioEngineService: Successfully loaded ${track.id}');
+        debugPrint('AudioEngineService: Successfully loaded ${track.id}');
       } catch (e) {
-        print('AudioEngineService: Error loading track ${track.name} at ${track.filePath}: $e');
+        debugPrint('AudioEngineService: Error loading track ${track.name} at ${track.filePath}: $e');
       }
     }
     
-    print('AudioEngineService: Finished loading all tracks. Total ready: ${_loadedSources.length}');
+    debugPrint('AudioEngineService: Finished loading all tracks. Total ready: ${_loadedSources.length}');
   }
 
   /// Plays all loaded tracks simultaneously.
   Future<void> play() async {
-    print('AudioEngineService: Calling play() - Sequence exists: ${_currentSequence != null} - Loaded Sources: ${_loadedSources.length}');
+    debugPrint('AudioEngineService: Calling play() - Sequence exists: ${_currentSequence != null} - Loaded Sources: ${_loadedSources.length}');
     if (_currentSequence == null || _loadedSources.isEmpty) return;
 
     if (_playingHandles.isNotEmpty) {
@@ -103,7 +104,7 @@ class AudioEngineService {
     // Assign proper mix states before unpausing.
     _recalculateVolumes();
 
-    print('AudioEngineService: Unpausing ${_playingHandles.length} synced tracks...');
+    debugPrint('AudioEngineService: Unpausing ${_playingHandles.length} synced tracks...');
     // Now unpause all simultaneously for perfect sync
     for (var handle in _playingHandles.values) {
       SoLoud.instance.setPause(handle, false);

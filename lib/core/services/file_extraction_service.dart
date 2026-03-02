@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/sequence.dart';
 import '../models/track.dart';
 import 'package:command_center_app/core/services/settings_service.dart';
+import 'package:flutter/foundation.dart';
 
 class FileExtractionService {
   
@@ -121,7 +121,7 @@ class FileExtractionService {
         final ext = p.extension(file.name).toLowerCase();
         seenExtensions.add(ext);
         seenFileNames.add(file.name);
-        print('Found file in ZIP: ${file.name} (Ext: $ext)'); // Debug logging
+        debugPrint('Found file in ZIP: ${file.name} (Ext: $ext)'); // Debug logging
         
         if (ext == '.wav' || ext == '.mp3' || ext == '.ogg' || ext == '.flac') {
            final String outputFileName = p.basename(file.name);
@@ -144,9 +144,9 @@ class FileExtractionService {
                 clickKeywords: clickKeywords,
                 cueKeywords: cueKeywords
              ));
-             print('Successfully extracted: $outputFileName');
+             debugPrint('Successfully extracted: $outputFileName');
            } catch (e) {
-             print('Failed to write stream for $outputFileName: $e');
+             debugPrint('Failed to write stream for $outputFileName: $e');
            }
         }
       }

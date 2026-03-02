@@ -16,7 +16,7 @@ final ThemeData appDarkTheme = ThemeData(
     activeTrackColor: const Color(0xFF2E6F40),
     inactiveTrackColor: Colors.grey.shade800,
     thumbColor: Colors.white,
-    overlayColor: const Color(0xFF2E6F40).withOpacity(0.2),
+    overlayColor: const Color(0xFF2E6F40).withValues(alpha: 0.2),
   ),
   textTheme: const TextTheme(
     bodyLarge: TextStyle(color: Colors.white70, fontSize: 16),

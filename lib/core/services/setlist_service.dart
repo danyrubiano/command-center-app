@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:command_center_app/core/models/setlist.dart';
 import 'package:command_center_app/core/models/sequence.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:command_center_app/core/services/settings_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 class SetlistService {
@@ -30,7 +30,7 @@ class SetlistService {
       }
       return list;
     } catch (e) {
-      print('Failed to load setlists: $e');
+      debugPrint('Failed to load setlists: $e');
       return [];
     }
   }
@@ -42,7 +42,7 @@ class SetlistService {
       final jsonString = jsonEncode(setlist.toJson());
       await file.writeAsString(jsonString);
     } catch (e) {
-      print('Failed to save setlist: $e');
+      debugPrint('Failed to save setlist: $e');
       throw Exception('Failed to save setlist: $e');
     }
   }
@@ -55,7 +55,7 @@ class SetlistService {
         await file.delete();
       }
     } catch (e) {
-      print('Failed to delete setlist: $e');
+      debugPrint('Failed to delete setlist: $e');
       throw Exception('Failed to delete setlist: $e');
     }
   }
@@ -87,7 +87,7 @@ class SetlistService {
         }
       }
     } catch (e) {
-      print('Failed to update Sequence references globally: $e');
+      debugPrint('Failed to update Sequence references globally: $e');
     }
   }
 
@@ -97,7 +97,7 @@ class SetlistService {
       final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
       await file.writeAsString(id);
     } catch (e) {
-      print('Failed to save last played setlist id: $e');
+      debugPrint('Failed to save last played setlist id: $e');
     }
   }
 
@@ -109,7 +109,7 @@ class SetlistService {
         return await file.readAsString();
       }
     } catch (e) {
-      print('Failed to get last played setlist id: $e');
+      debugPrint('Failed to get last played setlist id: $e');
     }
     return null;
   }
