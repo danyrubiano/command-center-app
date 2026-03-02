@@ -18,7 +18,7 @@ class SetlistBuilderPage extends StatefulWidget {
 class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   List<Setlist> _savedSetlists = [];
   List<Sequence> _availableSequences = [];
-  
+
   Setlist? _currentSetlist;
   bool _isLoading = true;
 
@@ -32,7 +32,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     setState(() => _isLoading = true);
     final setlists = await SetlistService.getSavedSetlists();
     final sequences = await FileExtractionService.loadSavedSequences();
-    
+
     setState(() {
       _savedSetlists = setlists;
       _availableSequences = sequences;
@@ -50,7 +50,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   void _deleteSetlist(Setlist setlist) async {
     await SetlistService.deleteSetlist(setlist.id);
     if (_currentSetlist?.id == setlist.id) {
-       setState(() => _currentSetlist = null);
+      setState(() => _currentSetlist = null);
     }
     _loadData();
   }
@@ -59,7 +59,9 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     if (_currentSetlist != null) {
       await SetlistService.saveSetlist(_currentSetlist!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Setlist Saved!')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Setlist Saved!')));
       }
       _loadData();
     }
@@ -67,21 +69,21 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
   void _addSequenceToSetlist(Sequence seq) {
     if (_currentSetlist == null) return;
-    
+
     // Create a copy of the sequence to allow independent tag/mix adjustments per setlist without altering the global library permanently
     final Sequence copy = Sequence.fromJson(seq.toJson());
     // Give it a unique ID for the reorderable list
     final uniqueId = '${copy.id}_${DateTime.now().millisecondsSinceEpoch}';
-    
+
     final newSeq = Sequence(
-      id: uniqueId, 
-      name: copy.name, 
-      folderPath: copy.folderPath, 
-      tracks: copy.tracks, 
-      cueTags: copy.cueTags, 
-      detectedKey: copy.detectedKey, 
-      pauseAfterSeconds: copy.pauseAfterSeconds, 
-      pitchOverride: copy.pitchOverride
+      id: uniqueId,
+      name: copy.name,
+      folderPath: copy.folderPath,
+      tracks: copy.tracks,
+      cueTags: copy.cueTags,
+      detectedKey: copy.detectedKey,
+      pauseAfterSeconds: copy.pauseAfterSeconds,
+      pitchOverride: copy.pitchOverride,
     );
 
     setState(() {
@@ -90,55 +92,72 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   }
 
   void _editSetlistName() {
-     if (_currentSetlist == null) return;
-     TextEditingController ctrl = TextEditingController(text: _currentSetlist!.name);
-     showDialog(context: context, builder: (ctx) {
-         return AlertDialog(
-           title: const Text('Edit Setlist Name'),
-           content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Name')),
-           actions: [
-             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-             ElevatedButton(
-               onPressed: () {
-                 if (ctrl.text.trim().isNotEmpty) {
-                   setState(() {
-                      _currentSetlist!.name = ctrl.text.trim();
-                   });
-                 }
-                 Navigator.pop(ctx);
-               },
-               child: const Text('Save'),
-             ),
-           ],
-         );
-     });
+    if (_currentSetlist == null) return;
+    TextEditingController ctrl = TextEditingController(
+      text: _currentSetlist!.name,
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Setlist Name'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(labelText: 'Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (ctrl.text.trim().isNotEmpty) {
+                  setState(() {
+                    _currentSetlist!.name = ctrl.text.trim();
+                  });
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _editSequenceName(Sequence seq, int index) {
-      TextEditingController ctrl = TextEditingController(text: seq.name);
-      showDialog(context: context, builder: (ctx) {
-         return AlertDialog(
-           title: const Text('Edit Sequence Name'),
-           content: TextField(
-               controller: ctrl, 
-               decoration: const InputDecoration(labelText: 'Name'),
+    TextEditingController ctrl = TextEditingController(text: seq.name);
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Sequence Name'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(labelText: 'Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
             ),
-           actions: [
-             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-             ElevatedButton(
-               onPressed: () {
-                  if (ctrl.text.trim().isNotEmpty) {
-                     setState(() {
-                        _currentSetlist!.sequences[index].name = ctrl.text.trim();
-                     });
-                  }
-                  Navigator.pop(ctx);
-               },
-               child: const Text('Save'),
-             ),
-           ],
-         );
-     });
+            ElevatedButton(
+              onPressed: () {
+                if (ctrl.text.trim().isNotEmpty) {
+                  setState(() {
+                    _currentSetlist!.sequences[index].name = ctrl.text.trim();
+                  });
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -167,8 +186,18 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Saved Setlists', style: TextStyle(fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.add_circle, color: Colors.greenAccent), onPressed: _createNewSetlist, tooltip: 'New Setlist'),
+                        const Text(
+                          'Saved Setlists',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: Colors.greenAccent,
+                          ),
+                          onPressed: _createNewSetlist,
+                          tooltip: 'New Setlist',
+                        ),
                       ],
                     ),
                   ),
@@ -182,32 +211,51 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                         final isSelected = _currentSetlist?.id == sl.id;
                         return ListTile(
                           selected: isSelected,
-                          selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-                          title: Text(sl.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                          selectedTileColor: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.2),
+                          title: Text(
+                            sl.name,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
                           subtitle: Text('${sl.sequences.length} Sequences'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                               IconButton(
-                                icon: const Icon(Icons.play_arrow, color: Colors.greenAccent, size: 20),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.greenAccent,
+                                  size: 20,
+                                ),
                                 onPressed: () {
-                                   if (widget.onSetlistActivated != null) {
-                                      widget.onSetlistActivated!(sl);
-                                   }
+                                  if (widget.onSetlistActivated != null) {
+                                    widget.onSetlistActivated!(sl);
+                                  }
                                 },
                                 tooltip: 'Load to Player',
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                  size: 20,
+                                ),
                                 onPressed: () => _deleteSetlist(sl),
                               ),
                             ],
                           ),
                           onTap: () {
-                             setState(() {
-                                _currentSetlist = Setlist.fromJson(sl.toJson()); // Edit a clone
-                             });
-                          }, 
+                            setState(() {
+                              _currentSetlist = Setlist.fromJson(
+                                sl.toJson(),
+                              ); // Edit a clone
+                            });
+                          },
                         );
                       },
                     ),
@@ -217,7 +265,13 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                   Container(color: Colors.white12, height: 4),
                   const Padding(
                     padding: EdgeInsets.all(12.0),
-                    child: Align(alignment: Alignment.centerLeft, child: Text('Library', style: TextStyle(fontWeight: FontWeight.bold))),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Library',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                   const Divider(color: Colors.white24, height: 1),
                   Expanded(
@@ -227,14 +281,20 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                       itemBuilder: (context, index) {
                         final seq = _availableSequences[index];
                         return ListTile(
-                           leading: const Icon(Icons.music_note, color: Colors.blueAccent),
-                           title: Text(seq.name),
-                           subtitle: Text(seq.folderPath.split('/').last, overflow: TextOverflow.ellipsis),
-                           trailing: IconButton(
-                              icon: const Icon(Icons.add, color: Colors.white),
-                              onPressed: () => _addSequenceToSetlist(seq),
-                              tooltip: 'Add to current setlist',
-                           ),
+                          leading: const Icon(
+                            Icons.music_note,
+                            color: Colors.blueAccent,
+                          ),
+                          title: Text(seq.name),
+                          subtitle: Text(
+                            seq.folderPath.split('/').last,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            onPressed: () => _addSequenceToSetlist(seq),
+                            tooltip: 'Add to current setlist',
+                          ),
                         );
                       },
                     ),
@@ -243,7 +303,6 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
               ),
             ),
           ),
-          
 
           // PANEL 2: Setlist Editor Area (Current Setlist)
           Expanded(
@@ -253,139 +312,234 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
               decoration: BoxDecoration(
                 color: Theme.of(context).canvasColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).primaryColor, width: 2),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor,
+                  width: 2,
+                ),
               ),
-              child: _currentSetlist == null 
-               ? const Center(child: Text('Select or Create a Setlist to Edit', style: TextStyle(color: Colors.white54, fontSize: 18)))
-               : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 8,
+              child: _currentSetlist == null
+                  ? const Center(
+                      child: Text(
+                        'Select or Create a Setlist to Edit',
+                        style: TextStyle(color: Colors.white54, fontSize: 18),
+                      ),
+                    )
+                  : Column(
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(child: Text('Editing: ${_currentSetlist!.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis)),
-                            IconButton(icon: const Icon(Icons.edit, size: 16, color: Colors.white54), onPressed: _editSetlistName),
-                          ],
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (_currentSetlist!.sequences.isNotEmpty)
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.play_circle_fill, color: Colors.white),
-                                label: const Flexible(child: Text('Load to Player', style: TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
-                                onPressed: () {
-                                    if (widget.onSetlistActivated != null) {
-                                       widget.onSetlistActivated!(_currentSetlist!);
-                                    }
-                                },
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                              ),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.save, color: Colors.white),
-                              label: const Flexible(child: Text('Save Setlist', style: TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
-                              onPressed: _saveCurrentSetlist,
-                              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(color: Colors.white24, height: 1),
-                  if (_currentSetlist!.sequences.isEmpty)
-                     const Expanded(child: Center(child: Text('No Sequences Added.\nUse the Library panel to add songs.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38)))),
-                  if (_currentSetlist!.sequences.isNotEmpty)
-                  Expanded(
-                    child: ReorderableListView(
-                      onReorder: (oldIndex, newIndex) {
-                        setState(() {
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
-                          final item = _currentSetlist!.sequences.removeAt(oldIndex);
-                          _currentSetlist!.sequences.insert(newIndex, item);
-                        });
-                      },
-                      children: List.generate(
-                        _currentSetlist!.sequences.length,
-                        (index) {
-                          final seq = _currentSetlist!.sequences[index];
-                          return Card(
-                            key: ValueKey(seq.id),
-                            color: Colors.black26,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: Text('${index + 1}', style: const TextStyle(color: Colors.white)),
-                              ),
-                              title: Row(
-                                children: [
-                                   Flexible(child: Text(seq.name, overflow: TextOverflow.ellipsis)),
-                                   const SizedBox(width: 8),
-                                   IconButton(
-                                      icon: const Icon(Icons.edit, size: 16, color: Colors.white54), 
-                                      onPressed: () => _editSequenceName(seq, index)
-                                   ),
-                                ]
-                              ),
-                              subtitle: Text('Pause After: ${seq.pauseAfterSeconds}s | Key: ${seq.detectedKey}'),
-                              trailing: Row(
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.tune, color: Colors.greenAccent),
-                                    tooltip: 'Edit Sequence Mix/Tags',
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => SequenceEditorPage(
-                                            sequence: seq,
-                                          ),
-                                        ),
-                                      ).then((_) {
-                                         // Trigger rebuild in case sequence was mutated
-                                         setState((){});
-                                      });
-                                    },
+                                  Flexible(
+                                    child: Text(
+                                      'Editing: ${_currentSetlist!.name}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.timer, color: Colors.white70),
-                                    tooltip: 'Edit Pause Duration',
-                                    onPressed: () {
-                                       _editPauseDuration(seq, index);
-                                    },
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 16,
+                                      color: Colors.white54,
+                                    ),
+                                    onPressed: _editSetlistName,
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
-                                    tooltip: 'Remove from Setlist',
-                                    onPressed: () {
-                                      setState(() {
-                                        _currentSetlist!.sequences.removeAt(index);
-                                      });
-                                    },
-                                  ),
-                                  const Icon(Icons.drag_handle, color: Colors.white38),
-                                  const SizedBox(width: 8),
                                 ],
                               ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (_currentSetlist!.sequences.isNotEmpty)
+                                    ElevatedButton.icon(
+                                      icon: const Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Flexible(
+                                        child: Text(
+                                          'Load to Player',
+                                          style: TextStyle(color: Colors.white),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        if (widget.onSetlistActivated != null) {
+                                          widget.onSetlistActivated!(
+                                            _currentSetlist!,
+                                          );
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(
+                                      Icons.save,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Flexible(
+                                      child: Text(
+                                        'Save Setlist',
+                                        style: TextStyle(color: Colors.white),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    onPressed: _saveCurrentSetlist,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(color: Colors.white24, height: 1),
+                        if (_currentSetlist!.sequences.isEmpty)
+                          const Expanded(
+                            child: Center(
+                              child: Text(
+                                'No Sequences Added.\nUse the Library panel to add songs.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white38),
+                              ),
                             ),
-                          );
-                        }
-                      ),
+                          ),
+                        if (_currentSetlist!.sequences.isNotEmpty)
+                          Expanded(
+                            child: ReorderableListView(
+                              onReorder: (oldIndex, newIndex) {
+                                setState(() {
+                                  if (oldIndex < newIndex) {
+                                    newIndex -= 1;
+                                  }
+                                  final item = _currentSetlist!.sequences
+                                      .removeAt(oldIndex);
+                                  _currentSetlist!.sequences.insert(
+                                    newIndex,
+                                    item,
+                                  );
+                                });
+                              },
+                              children: List.generate(
+                                _currentSetlist!.sequences.length,
+                                (index) {
+                                  final seq = _currentSetlist!.sequences[index];
+                                  return Card(
+                                    key: ValueKey(seq.id),
+                                    color: Colors.black26,
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).primaryColor,
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              seq.name,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 16,
+                                              color: Colors.white54,
+                                            ),
+                                            onPressed: () =>
+                                                _editSequenceName(seq, index),
+                                          ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        'Pause After: ${seq.pauseAfterSeconds}s | Key: ${seq.detectedKey}',
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.tune,
+                                              color: Colors.greenAccent,
+                                            ),
+                                            tooltip: 'Edit Sequence Mix/Tags',
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      SequenceEditorPage(
+                                                        sequence: seq,
+                                                      ),
+                                                ),
+                                              ).then((_) {
+                                                // Trigger rebuild in case sequence was mutated
+                                                setState(() {});
+                                              });
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.timer,
+                                              color: Colors.white70,
+                                            ),
+                                            tooltip: 'Edit Pause Duration',
+                                            onPressed: () {
+                                              _editPauseDuration(seq, index);
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.remove_circle,
+                                              color: Colors.redAccent,
+                                            ),
+                                            tooltip: 'Remove from Setlist',
+                                            onPressed: () {
+                                              setState(() {
+                                                _currentSetlist!.sequences
+                                                    .removeAt(index);
+                                              });
+                                            },
+                                          ),
+                                          const Icon(
+                                            Icons.drag_handle,
+                                            color: Colors.white38,
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],
@@ -394,31 +548,39 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   }
 
   void _editPauseDuration(Sequence seq, int index) {
-      TextEditingController ctrl = TextEditingController(text: seq.pauseAfterSeconds.toString());
-      showDialog(context: context, builder: (ctx) {
-         return AlertDialog(
-           title: const Text('Edit Auto-Pause Duration'),
-           content: TextField(
-               controller: ctrl, 
-               decoration: const InputDecoration(labelText: 'Seconds'),
-               keyboardType: TextInputType.number,
+    TextEditingController ctrl = TextEditingController(
+      text: seq.pauseAfterSeconds.toString(),
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Auto-Pause Duration'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(labelText: 'Seconds'),
+            keyboardType: TextInputType.number,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
             ),
-           actions: [
-             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-             ElevatedButton(
-               onPressed: () {
-                 final int? val = int.tryParse(ctrl.text);
-                 if (val != null) {
-                    setState(() {
-                       _currentSetlist!.sequences[index].pauseAfterSeconds = val;
-                    });
-                 }
-                 Navigator.pop(ctx);
-               },
-               child: const Text('Save'),
-             ),
-           ],
-         );
-     });
+            ElevatedButton(
+              onPressed: () {
+                final int? val = int.tryParse(ctrl.text);
+                if (val != null) {
+                  setState(() {
+                    _currentSetlist!.sequences[index].pauseAfterSeconds = val;
+                  });
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

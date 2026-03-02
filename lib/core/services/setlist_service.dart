@@ -10,7 +10,9 @@ import 'package:path/path.dart' as p;
 class SetlistService {
   static Future<Directory> _getSetlistDir() async {
     final docsDir = await SettingsService().getStorageDirectory();
-    final setlistsDir = Directory(p.join(docsDir.path, 'CommandCenter', 'Setlists'));
+    final setlistsDir = Directory(
+      p.join(docsDir.path, 'CommandCenter', 'Setlists'),
+    );
     if (!await setlistsDir.exists()) {
       await setlistsDir.create(recursive: true);
     }
@@ -62,28 +64,31 @@ class SetlistService {
 
   /// Scans all saved setlists. If a setlist contains a sequence with [oldFolderPath],
   /// its name, id, folderPath, and tracks are updated to match [updatedSequence].
-  static Future<void> updateSequenceReferencesGlobal(String oldFolderPath, Sequence updatedSequence) async {
+  static Future<void> updateSequenceReferencesGlobal(
+    String oldFolderPath,
+    Sequence updatedSequence,
+  ) async {
     try {
       final list = await getSavedSetlists();
       for (Setlist sl in list) {
         bool changed = false;
-        
+
         for (int i = 0; i < sl.sequences.length; i++) {
-           if (sl.sequences[i].folderPath == oldFolderPath) {
-              // Create a clone but retain the setlist's unique runtime ID for reordering
-              final originalId = sl.sequences[i].id; 
-              
-              final updatedJson = updatedSequence.toJson();
-              updatedJson['id'] = originalId;
-              
-              sl.sequences[i] = Sequence.fromJson(updatedJson);
-              
-              changed = true;
-           }
+          if (sl.sequences[i].folderPath == oldFolderPath) {
+            // Create a clone but retain the setlist's unique runtime ID for reordering
+            final originalId = sl.sequences[i].id;
+
+            final updatedJson = updatedSequence.toJson();
+            updatedJson['id'] = originalId;
+
+            sl.sequences[i] = Sequence.fromJson(updatedJson);
+
+            changed = true;
+          }
         }
 
         if (changed) {
-           await saveSetlist(sl);
+          await saveSetlist(sl);
         }
       }
     } catch (e) {
@@ -94,7 +99,9 @@ class SetlistService {
   static Future<void> saveLastPlayedSetlistId(String id) async {
     try {
       final docsDir = await SettingsService().getStorageDirectory();
-      final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
+      final file = File(
+        p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'),
+      );
       await file.writeAsString(id);
     } catch (e) {
       debugPrint('Failed to save last played setlist id: $e');
@@ -104,7 +111,9 @@ class SetlistService {
   static Future<String?> getLastPlayedSetlistId() async {
     try {
       final docsDir = await SettingsService().getStorageDirectory();
-      final file = File(p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'));
+      final file = File(
+        p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'),
+      );
       if (await file.exists()) {
         return await file.readAsString();
       }

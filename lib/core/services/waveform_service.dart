@@ -27,50 +27,54 @@ class WaveformService {
     }
 
     List<Waveform> extractedMusicWaveforms = [];
-    
+
     // Extract individual waveforms (including click and cues so they have VU meters)
     for (int i = 0; i < sequence.tracks.length; i++) {
-        final track = sequence.tracks[i];
-        final trackFile = File(track.filePath);
-        final waveFile = File(p.join(sequenceDir, '${track.name}.wave'));
-        
-        if (!waveFile.existsSync()) {
-          final completer = Completer<Waveform>();
-          
-          final stream = JustWaveform.extract(
-            audioInFile: trackFile,
-            waveOutFile: waveFile,
-            zoom: const WaveformZoom.pixelsPerSecond(50), 
-          );
-          
-          stream.listen((progress) {
+      final track = sequence.tracks[i];
+      final trackFile = File(track.filePath);
+      final waveFile = File(p.join(sequenceDir, '${track.name}.wave'));
+
+      if (!waveFile.existsSync()) {
+        final completer = Completer<Waveform>();
+
+        final stream = JustWaveform.extract(
+          audioInFile: trackFile,
+          waveOutFile: waveFile,
+          zoom: const WaveformZoom.pixelsPerSecond(50),
+        );
+
+        stream.listen(
+          (progress) {
             double currentProgress = progress.progress;
             // Weighted progress based on total tracks to extract + 1 for merge
-            double overallProgress = (i + currentProgress) / (sequence.tracks.length + 1);
+            double overallProgress =
+                (i + currentProgress) / (sequence.tracks.length + 1);
             onProgress?.call(overallProgress);
-            
+
             if (progress.waveform != null) {
               if (!completer.isCompleted) {
                 completer.complete(progress.waveform);
               }
             }
-          }, onError: (e) {
-             if (!completer.isCompleted) completer.completeError(e);
-          });
-          
-          final wave = await completer.future;
-          if (!track.isClickOrCues) extractedMusicWaveforms.add(wave);
-        } else {
-          final parsed = await JustWaveform.parse(waveFile);
-          if (!track.isClickOrCues) extractedMusicWaveforms.add(parsed);
-        }
+          },
+          onError: (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          },
+        );
+
+        final wave = await completer.future;
+        if (!track.isClickOrCues) extractedMusicWaveforms.add(wave);
+      } else {
+        final parsed = await JustWaveform.parse(waveFile);
+        if (!track.isClickOrCues) extractedMusicWaveforms.add(parsed);
+      }
     }
-    
+
     onProgress?.call((sequence.tracks.length) / (sequence.tracks.length + 1));
 
     // Merge only the music waveforms into a single waveform
     final merged = _mergeWaveforms(extractedMusicWaveforms);
-    
+
     // Save the merged waveform header/data so we can parse it from disk next time.
     final bytes = BytesBuilder();
     // Reconstruct the audiowaveform header (20 bytes)
@@ -81,12 +85,12 @@ class WaveformService {
     headerList[2] = topWave.sampleRate;
     headerList[3] = topWave.samplesPerPixel;
     headerList[4] = merged.length;
-    
+
     bytes.add(headerList.buffer.asUint8List());
     bytes.add((merged.data as Int16List).buffer.asUint8List());
-    
+
     await mergedWaveFile.writeAsBytes(bytes.toBytes());
-    
+
     onProgress?.call(1.0);
     return merged;
   }
@@ -102,22 +106,22 @@ class WaveformService {
     }
 
     final mergedData = Int16List(maxLength);
-    
+
     for (int i = 0; i < maxLength; i++) {
-        int sum = 0;
-        int count = 0;
-        
-        for (var w in waveforms) {
-          if (i < w.data.length) {
-            sum += w.data[i];
-            count++;
-          }
+      int sum = 0;
+      int count = 0;
+
+      for (var w in waveforms) {
+        if (i < w.data.length) {
+          sum += w.data[i];
+          count++;
         }
-        
-        if (count > 0) {
-           // Average the amplitudes so it doesn't clip excessively
-           mergedData[i] = (sum / count).round();
-        }
+      }
+
+      if (count > 0) {
+        // Average the amplitudes so it doesn't clip excessively
+        mergedData[i] = (sum / count).round();
+      }
     }
 
     final topWave = waveforms.first;
@@ -126,12 +130,16 @@ class WaveformService {
       flags: 0, // 16 bit
       sampleRate: topWave.sampleRate,
       samplesPerPixel: topWave.samplesPerPixel,
-      length: maxLength ~/ 2, // length is the number of pixels, data array is 2x length (min, max per pixel)
+      length:
+          maxLength ~/
+          2, // length is the number of pixels, data array is 2x length (min, max per pixel)
       data: mergedData,
     );
   }
 
-  static Future<Map<String, Waveform>> getTrackWaveforms(Sequence sequence) async {
+  static Future<Map<String, Waveform>> getTrackWaveforms(
+    Sequence sequence,
+  ) async {
     Map<String, Waveform> map = {};
     for (var t in sequence.tracks) {
       final sequenceDir = p.dirname(t.filePath);

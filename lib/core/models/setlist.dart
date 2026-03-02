@@ -5,11 +5,7 @@ class Setlist {
   String name;
   List<Sequence> sequences;
 
-  Setlist({
-    required this.id,
-    required this.name,
-    this.sequences = const [],
-  });
+  Setlist({required this.id, required this.name, this.sequences = const []});
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -21,7 +17,11 @@ class Setlist {
     return Setlist(
       id: json['id'],
       name: json['name'],
-      sequences: (json['sequences'] as List?)?.map((e) => Sequence.fromJson(e)).toList() ?? [],
+      sequences:
+          (json['sequences'] as List?)
+              ?.map((e) => Sequence.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }

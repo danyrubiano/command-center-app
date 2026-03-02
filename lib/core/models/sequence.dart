@@ -7,9 +7,9 @@ class Sequence {
   String detectedKey;
   int pitchOverride;
   int pauseAfterSeconds;
-  
+
   List<CueTag> cueTags;
-  
+
   List<Track> tracks;
 
   Sequence({
@@ -42,8 +42,12 @@ class Sequence {
       detectedKey: json['detectedKey'] ?? 'Auto',
       pitchOverride: json['pitchOverride'] ?? 0,
       pauseAfterSeconds: json['pauseAfterSeconds'] ?? 5,
-      cueTags: (json['cueTags'] as List?)?.map((e) => CueTag.fromJson(e)).toList() ?? [],
-      tracks: (json['tracks'] as List?)?.map((e) => Track.fromJson(e)).toList() ?? [],
+      cueTags:
+          (json['cueTags'] as List?)?.map((e) => CueTag.fromJson(e)).toList() ??
+          [],
+      tracks:
+          (json['tracks'] as List?)?.map((e) => Track.fromJson(e)).toList() ??
+          [],
     );
   }
 }
@@ -51,7 +55,7 @@ class Sequence {
 class CueTag {
   String name;
   final Duration position;
-  
+
   CueTag({required this.name, required this.position});
 
   Map<String, dynamic> toJson() => {

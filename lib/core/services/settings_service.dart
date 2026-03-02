@@ -28,15 +28,15 @@ class SettingsService {
   /// Gets the currently defined local storage directory for setlists and sequences.
   Future<Directory> getStorageDirectory() async {
     if (_prefs == null) await init();
-    
+
     String? customPath = _prefs!.getString(_customStoragePathKey);
     if (customPath != null && customPath.isNotEmpty) {
       final dir = Directory(customPath);
       if (await dir.exists()) {
-         return dir;
+        return dir;
       }
     }
-    
+
     // Default fallback
     return await getApplicationDocumentsDirectory();
   }
@@ -71,7 +71,7 @@ class SettingsService {
     return _prefs!.getString(_audioOutputDeviceNameKey);
   }
 
-  /// Sets the preferred Audio Output Device 
+  /// Sets the preferred Audio Output Device
   Future<void> setAudioOutputDevice(int id, String name) async {
     if (_prefs == null) await init();
     await _prefs!.setInt(_audioOutputDeviceIdKey, id);
@@ -93,7 +93,8 @@ class SettingsService {
   /// Gets Cue Track Keywords
   Future<String> getCueTrackKeywords() async {
     if (_prefs == null) await init();
-    return _prefs!.getString(_cueTrackKeywordsKey) ?? 'cue, cues, guide, guider, guia, vocal, english';
+    return _prefs!.getString(_cueTrackKeywordsKey) ??
+        'cue, cues, guide, guider, guia, vocal, english';
   }
 
   /// Sets Cue Track Keywords

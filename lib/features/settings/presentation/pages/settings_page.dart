@@ -32,7 +32,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final clickK = await SettingsService().getClickTrackKeywords();
     final cueK = await SettingsService().getCueTrackKeywords();
     final preventSleep = await SettingsService().getPreventScreenSleep();
-    
+
     if (mounted) {
       setState(() {
         _currentStoragePath = dir.path;
@@ -73,11 +73,16 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.all(16),
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Select Audio Output Device', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Select Audio Output Device',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: ListView.builder(
@@ -87,16 +92,27 @@ class _SettingsPageState extends State<SettingsPage> {
                     final device = devices[idx];
                     return ListTile(
                       title: Text(device.name),
-                      trailing: device.isDefault ? const Icon(Icons.star, size: 16, color: Colors.amber) : null,
+                      trailing: device.isDefault
+                          ? const Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Colors.amber,
+                            )
+                          : null,
                       onTap: () async {
                         try {
-                           SoLoud.instance.changeDevice(newDevice: device);
-                           await SettingsService().setAudioOutputDevice(device.id, device.name);
-                           setState(() {
-                             _audioDeviceName = device.name;
-                           });
+                          SoLoud.instance.changeDevice(newDevice: device);
+                          await SettingsService().setAudioOutputDevice(
+                            device.id,
+                            device.name,
+                          );
+                          setState(() {
+                            _audioDeviceName = device.name;
+                          });
                         } catch (e) {
-                           debugPrint('Failed changing output device manually to ${device.name}: $e');
+                          debugPrint(
+                            'Failed changing output device manually to ${device.name}: $e',
+                          );
                         }
                         if (context.mounted) Navigator.pop(ctx);
                       },
@@ -107,9 +123,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         );
-      }
+      },
     );
   }
+
   Future<void> _editKeywords(bool isClick) async {
     final title = isClick ? 'Click Track Keywords' : 'Cue Track Keywords';
     final initialValue = isClick ? _clickKeywords : _cueKeywords;
@@ -128,16 +145,16 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx), 
-              child: const Text('Cancel')
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text), 
-              child: const Text('Save')
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Save'),
             ),
-          ]
+          ],
         );
-      }
+      },
     );
 
     if (result != null) {
@@ -160,73 +177,90 @@ class _SettingsPageState extends State<SettingsPage> {
           _SettingsSection(
             title: 'Storage & File Management',
             children: [
-               ListTile(
-                 title: const Text('Live Configurations Folder'),
-                 subtitle: Text(_currentStoragePath, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                 trailing: const Icon(Icons.folder_open, size: 20, color: Colors.blueAccent),
-                 onTap: _pickStorageFolder,
-               ),
-            ]
+              ListTile(
+                title: const Text('Live Configurations Folder'),
+                subtitle: Text(
+                  _currentStoragePath,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                trailing: const Icon(
+                  Icons.folder_open,
+                  size: 20,
+                  color: Colors.blueAccent,
+                ),
+                onTap: _pickStorageFolder,
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           _SettingsSection(
             title: 'Audio Routing',
             children: [
-               SwitchListTile(
-                 activeTrackColor: Theme.of(context).primaryColor,
-                 title: const Text('Auto-Route In-Ear Monitors (Click/Cues)'),
-                 subtitle: const Text('Automatically hard-pans Click and Cues to Right Channel, and musical tracks to Left Channel when loading a sequence.'),
-                 value: _autoRouteClickCues,
-                 onChanged: (bool val) async {
-                   setState(() {
-                     _autoRouteClickCues = val;
-                   });
-                   await SettingsService().setAutoRouteClickCues(val);
-                 },
-               ),
-               ListTile(
-                 title: const Text('Audio Output Device'),
-                 subtitle: Text(_audioDeviceName),
-                 trailing: const Icon(Icons.settings_input_component, size: 20),
-                 onTap: _pickAudioDevice,
-               ),
-            ]
+              SwitchListTile(
+                activeTrackColor: Theme.of(context).primaryColor,
+                title: const Text('Auto-Route In-Ear Monitors (Click/Cues)'),
+                subtitle: const Text(
+                  'Automatically hard-pans Click and Cues to Right Channel, and musical tracks to Left Channel when loading a sequence.',
+                ),
+                value: _autoRouteClickCues,
+                onChanged: (bool val) async {
+                  setState(() {
+                    _autoRouteClickCues = val;
+                  });
+                  await SettingsService().setAutoRouteClickCues(val);
+                },
+              ),
+              ListTile(
+                title: const Text('Audio Output Device'),
+                subtitle: Text(_audioDeviceName),
+                trailing: const Icon(Icons.settings_input_component, size: 20),
+                onTap: _pickAudioDevice,
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           _SettingsSection(
             title: 'Track Identification',
             children: [
-               ListTile(
-                 title: const Text('Click Track Keywords'),
-                 subtitle: Text(_clickKeywords, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                 trailing: const Icon(Icons.edit, size: 16),
-                 onTap: () => _editKeywords(true),
-               ),
-               ListTile(
-                 title: const Text('Cue Track Keywords'),
-                 subtitle: Text(_cueKeywords, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                 trailing: const Icon(Icons.edit, size: 16),
-                 onTap: () => _editKeywords(false),
-               ),
-            ]
+              ListTile(
+                title: const Text('Click Track Keywords'),
+                subtitle: Text(
+                  _clickKeywords,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                trailing: const Icon(Icons.edit, size: 16),
+                onTap: () => _editKeywords(true),
+              ),
+              ListTile(
+                title: const Text('Cue Track Keywords'),
+                subtitle: Text(
+                  _cueKeywords,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                trailing: const Icon(Icons.edit, size: 16),
+                onTap: () => _editKeywords(false),
+              ),
+            ],
           ),
-           const SizedBox(height: 16),
+          const SizedBox(height: 16),
           _SettingsSection(
             title: 'Appearance & Security',
             children: [
-               SwitchListTile(
-                 activeTrackColor: Theme.of(context).primaryColor,
-                 title: const Text('Prevent Screen Sleep Status'),
-                 subtitle: const Text('Keeps screen active during fullscreen live mode.'),
-                 value: _preventScreenSleep,
-                 onChanged: (bool val) async {
-                   setState(() {
-                     _preventScreenSleep = val;
-                   });
-                   await SettingsService().setPreventScreenSleep(val);
-                 },
-               ),
-            ]
+              SwitchListTile(
+                activeTrackColor: Theme.of(context).primaryColor,
+                title: const Text('Prevent Screen Sleep Status'),
+                subtitle: const Text(
+                  'Keeps screen active during fullscreen live mode.',
+                ),
+                value: _preventScreenSleep,
+                onChanged: (bool val) async {
+                  setState(() {
+                    _preventScreenSleep = val;
+                  });
+                  await SettingsService().setPreventScreenSleep(val);
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -253,7 +287,13 @@ class _SettingsSection extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Text(title, style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+            child: Text(
+              title,
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           const Divider(height: 1, color: Colors.white12),
           ...children,

@@ -15,7 +15,7 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   List<Sequence> _sequences = [];
   bool _isExtracting = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -30,11 +30,12 @@ class _LibraryPageState extends State<LibraryPage> {
       });
     }
   }
-  
+
   Future<void> _extractSequence() async {
     setState(() => _isExtracting = true);
     try {
-      final Sequence? newSequence = await FileExtractionService.pickAndExtractSequence();
+      final Sequence? newSequence =
+          await FileExtractionService.pickAndExtractSequence();
       if (newSequence != null) {
         setState(() {
           _sequences.add(newSequence);
@@ -42,9 +43,9 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error extracting file: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error extracting file: $e')));
       }
     } finally {
       if (mounted) {
@@ -54,46 +55,61 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _renameSequence(Sequence sequence, int index) {
-      TextEditingController ctrl = TextEditingController(text: sequence.name);
-      showDialog(context: context, builder: (ctx) {
-         return AlertDialog(
-           title: const Text('Rename Sequence (Library)'),
-           content: TextField(
-               controller: ctrl, 
-               decoration: const InputDecoration(labelText: 'New Folder Name'),
+    TextEditingController ctrl = TextEditingController(text: sequence.name);
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Rename Sequence (Library)'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(labelText: 'New Folder Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
             ),
-           actions: [
-             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-             ElevatedButton(
-               onPressed: () async {
-                  if (ctrl.text.trim().isNotEmpty && ctrl.text.trim() != sequence.name) {
-                     try {
-                        String oldPath = sequence.folderPath;
-                        final updated = await FileExtractionService.renameSequenceFolder(sequence, ctrl.text.trim());
-                        
-                        // Push global changes to any Setlists using this backend!
-                        await SetlistService.updateSequenceReferencesGlobal(oldPath, updated);
-                        
-                        if (mounted) {
-                           setState(() {
-                              _sequences[index] = updated;
-                           });
-                        }
-                     } catch (e) {
-                        if (mounted) {
-                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
-                     }
-                  }
-                  if (ctx.mounted) Navigator.pop(ctx);
-               },
-               child: const Text('Rename'),
-             ),
-           ],
-         );
-     });
-  }
+            ElevatedButton(
+              onPressed: () async {
+                if (ctrl.text.trim().isNotEmpty &&
+                    ctrl.text.trim() != sequence.name) {
+                  try {
+                    String oldPath = sequence.folderPath;
+                    final updated =
+                        await FileExtractionService.renameSequenceFolder(
+                          sequence,
+                          ctrl.text.trim(),
+                        );
 
+                    // Push global changes to any Setlists using this backend!
+                    await SetlistService.updateSequenceReferencesGlobal(
+                      oldPath,
+                      updated,
+                    );
+
+                    if (mounted) {
+                      setState(() {
+                        _sequences[index] = updated;
+                      });
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  }
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,20 +125,32 @@ class _LibraryPageState extends State<LibraryPage> {
               decoration: BoxDecoration(
                 color: Theme.of(context).canvasColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white24, style: BorderStyle.solid),
+                border: Border.all(
+                  color: Colors.white24,
+                  style: BorderStyle.solid,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.cloud_upload_outlined, size: 48, color: Colors.greenAccent),
+                  const Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 48,
+                    color: Colors.greenAccent,
+                  ),
                   const SizedBox(height: 16),
-                  _isExtracting 
-                    ? const CircularProgressIndicator()
-                    : ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
-                        onPressed: _extractSequence,
-                        child: const Text('Upload / Extract Sequences (.zip)', style: TextStyle(color: Colors.white)),
-                      ),
+                  _isExtracting
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                          ),
+                          onPressed: _extractSequence,
+                          child: const Text(
+                            'Upload / Extract Sequences (.zip)',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                 ],
               ),
             ),
@@ -134,55 +162,76 @@ class _LibraryPageState extends State<LibraryPage> {
                   color: Theme.of(context).canvasColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: _sequences.isEmpty 
-                  ? const Center(child: Text('No sequences extracted yet. Upload a .zip file.', style: TextStyle(color: Colors.white54)))
-                  : ListView.builder(
-                      itemCount: _sequences.length,
-                      itemBuilder: (context, index) {
-                        final Sequence seq = _sequences[index];
-                        return ListTile(
-                          leading: const Icon(Icons.music_note, color: Colors.white70),
-                          title: Row(
-                            children: [
-                              Text('${seq.name} - ${seq.detectedKey}'),
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 16, color: Colors.white54),
-                                onPressed: () => _renameSequence(seq, index),
-                                tooltip: 'Rename Sequence Folder',
-                              ),
-                            ],
-                          ),
-                          subtitle: Text('${seq.tracks.length} Tracks • Discovered from ZIP'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.tune, color: Colors.greenAccent),
-                                tooltip: 'Open Sequence Editor',
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SequenceEditorPage(sequence: seq),
-                                    ),
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.redAccent),
-                                onPressed: () {
-                                  setState(() {
-                                    _sequences.removeAt(index);
-                                  });
-                                }
-                              ),
-                        ],
+                child: _sequences.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No sequences extracted yet. Upload a .zip file.',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _sequences.length,
+                        itemBuilder: (context, index) {
+                          final Sequence seq = _sequences[index];
+                          return ListTile(
+                            leading: const Icon(
+                              Icons.music_note,
+                              color: Colors.white70,
+                            ),
+                            title: Row(
+                              children: [
+                                Text('${seq.name} - ${seq.detectedKey}'),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 16,
+                                    color: Colors.white54,
+                                  ),
+                                  onPressed: () => _renameSequence(seq, index),
+                                  tooltip: 'Rename Sequence Folder',
+                                ),
+                              ],
+                            ),
+                            subtitle: Text(
+                              '${seq.tracks.length} Tracks • Discovered from ZIP',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.tune,
+                                    color: Colors.greenAccent,
+                                  ),
+                                  tooltip: 'Open Sequence Editor',
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            SequenceEditorPage(sequence: seq),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _sequences.removeAt(index);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
-            )
+            ),
           ],
         ),
       ),

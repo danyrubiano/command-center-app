@@ -45,21 +45,19 @@ class Track {
 
   // Simple factory for dynamic generation
   factory Track.fromFileName(
-    String path, 
-    String fileName, 
-    {
-      bool autoRoute = true,
-      String clickKeywords = 'click, clk, metronome',
-      String cueKeywords = 'cue, cues, guide, guider, guia, vocal, english'
-    }
-  ) {
+    String path,
+    String fileName, {
+    bool autoRoute = true,
+    String clickKeywords = 'click, clk, metronome',
+    String cueKeywords = 'cue, cues, guide, guider, guia, vocal, english',
+  }) {
     bool clickCues = _isSystemTrack(fileName, clickKeywords, cueKeywords);
     double assignedPan = 0.0;
-    
+
     if (autoRoute) {
-       assignedPan = clickCues ? 1.0 : -1.0; 
+      assignedPan = clickCues ? 1.0 : -1.0;
     }
-    
+
     return Track(
       id: fileName,
       name: _cleanName(fileName),
@@ -69,22 +67,29 @@ class Track {
     );
   }
 
-  static bool _isSystemTrack(String name, String clickKeywords, String cueKeywords) {
+  static bool _isSystemTrack(
+    String name,
+    String clickKeywords,
+    String cueKeywords,
+  ) {
     final lower = name.toLowerCase();
-    
+
     // Split combined keywords strings by commas, trim spaces, drop empty slots
-    final allKeywordsStringList = [...clickKeywords.split(','), ...cueKeywords.split(',')];
+    final allKeywordsStringList = [
+      ...clickKeywords.split(','),
+      ...cueKeywords.split(','),
+    ];
     final allKeywords = allKeywordsStringList
         .map((s) => s.trim().toLowerCase())
         .where((s) => s.isNotEmpty)
         .toList();
-        
+
     if (allKeywords.isEmpty) return false;
-    
+
     // Create robust regex string logic dynamically by escaping any strange user input
     final escapedKeywords = allKeywords.map((s) => RegExp.escape(s)).join('|');
     final regex = RegExp(r'(' + escapedKeywords + r')');
-    
+
     return regex.hasMatch(lower);
   }
 
