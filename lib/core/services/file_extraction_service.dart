@@ -9,7 +9,109 @@ import '../models/track.dart';
 import 'package:command_center_app/core/services/settings_service.dart';
 import 'package:flutter/foundation.dart';
 
+class ParsedMetadata {
+  final double? bpm;
+  final String key;
+  final String cleanName;
+
+  ParsedMetadata({this.bpm, required this.key, required this.cleanName});
+}
+
 class FileExtractionService {
+  static final List<String> _validKeys = [
+    'A',
+    'Am',
+    'A#',
+    'A#m',
+    'Bb',
+    'Bbm',
+    'B',
+    'Bm',
+    'C',
+    'Cm',
+    'C#',
+    'C#m',
+    'Db',
+    'Dbm',
+    'D',
+    'Dm',
+    'D#',
+    'D#m',
+    'Eb',
+    'Ebm',
+    'E',
+    'Em',
+    'F',
+    'Fm',
+    'F#',
+    'F#m',
+    'Gb',
+    'Gbm',
+    'G',
+    'Gm',
+    'G#',
+    'G#m',
+    'Ab',
+    'Abm',
+  ];
+
+  static ParsedMetadata parseMetadata(String rawName) {
+    double? bpm;
+    String? key;
+    String cleanName = rawName;
+
+    // Extract BPM
+    final bpmRegExp = RegExp(r'(\d+(?:\.\d+)?)\s*bpm', caseSensitive: false);
+    final bpmMatch = bpmRegExp.firstMatch(rawName);
+    if (bpmMatch != null) {
+      bpm = double.tryParse(bpmMatch.group(1)!);
+      cleanName = cleanName.replaceFirst(bpmMatch.group(0)!, '');
+    }
+
+    // Extract Key
+    final keyPatterns = [
+      RegExp(r'\[([A-G][#b]?m?)\]', caseSensitive: false),
+      RegExp(r'\(([A-G][#b]?m?)\)', caseSensitive: false),
+      RegExp(r'-\s*([A-G][#b]?m?)(?:\s|$)', caseSensitive: false),
+      RegExp(r'_([A-G][#b]?m?)\b', caseSensitive: false),
+      RegExp(r'\s([A-G][#b]?m?)$', caseSensitive: false),
+    ];
+
+    for (var pattern in keyPatterns) {
+      final matches = pattern.allMatches(rawName);
+      for (var match in matches) {
+        String possibleKeyLower = match.group(1)!.toLowerCase();
+
+        var matchingKey = _validKeys.firstWhere(
+          (k) => k.toLowerCase() == possibleKeyLower,
+          orElse: () => '',
+        );
+
+        if (matchingKey.isNotEmpty) {
+          key = matchingKey;
+          cleanName = cleanName.replaceFirst(match.group(0)!, '');
+          break;
+        }
+      }
+      if (key != null) break;
+    }
+
+    // Final string cleanup
+    cleanName = cleanName
+        .replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    while (cleanName.endsWith('-')) {
+      cleanName = cleanName.substring(0, cleanName.length - 1).trim();
+    }
+
+    return ParsedMetadata(
+      bpm: bpm,
+      key: key ?? 'Auto',
+      cleanName: cleanName.isEmpty ? 'Untitled Sequence' : cleanName,
+    );
+  }
+
   /// Scans the local app directory for existing extracted sequences and reconstructs them into memory on app boot.
   static Future<List<Sequence>> loadSavedSequences() async {
     final Directory docsDir = await SettingsService().getStorageDirectory();
@@ -61,12 +163,15 @@ class FileExtractionService {
             if (!a.isClickOrCues && b.isClickOrCues) return 1;
             return a.name.compareTo(b.name);
           });
+          final metadata = parseMetadata(sequenceName);
 
           loadedSequences.add(
             Sequence(
               id: sequenceName.toLowerCase().replaceAll(' ', '_'),
-              name: sequenceName,
+              name: metadata.cleanName,
               folderPath: entity.path,
+              bpm: metadata.bpm,
+              detectedKey: metadata.key,
               tracks: tracks,
             ),
           );
@@ -200,10 +305,14 @@ class FileExtractionService {
       });
 
       // 4. Return new Sequence entity
+      final metadata = parseMetadata(sequenceName);
+
       return Sequence(
         id: sequenceName.toLowerCase().replaceAll(' ', '_'),
-        name: sequenceName,
+        name: metadata.cleanName,
         folderPath: targetDirPath,
+        bpm: metadata.bpm,
+        detectedKey: metadata.key,
         tracks: extractedTracks,
       );
     } catch (e) {
