@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:command_center_app/core/services/audio_engine_service.dart';
+import 'package:command_center_app/core/services/setlist_service.dart';
 import 'package:command_center_app/core/services/waveform_service.dart';
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:just_waveform/just_waveform.dart';
@@ -283,7 +284,21 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
               'Save Configuration',
               style: TextStyle(color: Colors.white),
             ),
-            onPressed: () {},
+            onPressed: () async {
+              await SetlistService.updateSequenceReferencesGlobal(
+                widget.sequence.folderPath,
+                widget.sequence,
+              );
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Configuration saved across all associated setlists successfully!',
+                  ),
+                  backgroundColor: Colors.greenAccent.shade700,
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).primaryColor,
             ),
@@ -448,82 +463,87 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                     flex: 2,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  decoration: const InputDecoration(
-                                    labelText: 'BPM',
-                                    isDense: true,
-                                  ),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
-                                  controller:
-                                      TextEditingController(
-                                          text:
-                                              widget.sequence.bpm?.toString() ??
-                                              '',
-                                        )
-                                        ..selection = TextSelection.collapsed(
-                                          offset:
-                                              (widget.sequence.bpm
-                                                          ?.toString() ??
-                                                      '')
-                                                  .length,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      labelText: 'BPM',
+                                      isDense: true,
+                                    ),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
                                         ),
-                                  onChanged: (val) {
-                                    widget.sequence.bpm = double.tryParse(val);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Key',
-                                    isDense: true,
+                                    controller:
+                                        TextEditingController(
+                                            text:
+                                                widget.sequence.bpm
+                                                    ?.toString() ??
+                                                '',
+                                          )
+                                          ..selection = TextSelection.collapsed(
+                                            offset:
+                                                (widget.sequence.bpm
+                                                            ?.toString() ??
+                                                        '')
+                                                    .length,
+                                          ),
+                                    onChanged: (val) {
+                                      widget.sequence.bpm = double.tryParse(
+                                        val,
+                                      );
+                                    },
                                   ),
-                                  controller:
-                                      TextEditingController(
-                                          text: widget.sequence.detectedKey,
-                                        )
-                                        ..selection = TextSelection.collapsed(
-                                          offset: widget
-                                              .sequence
-                                              .detectedKey
-                                              .length,
-                                        ),
-                                  onChanged: (val) {
-                                    widget.sequence.detectedKey = val.isEmpty
-                                        ? 'Auto'
-                                        : val;
-                                  },
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Pitch: ${widget.sequence.pitchOverride > 0 ? '+' : ''}${widget.sequence.pitchOverride} Semi',
-                          ),
-                          Slider(
-                            value: widget.sequence.pitchOverride.toDouble(),
-                            min: -12,
-                            max: 12,
-                            divisions: 24,
-                            onChanged: (val) {
-                              setState(() {
-                                widget.sequence.pitchOverride = val.toInt();
-                                _audioEngine.updatePitch(val.toInt());
-                              });
-                            },
-                          ),
-                        ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      labelText: 'Key',
+                                      isDense: true,
+                                    ),
+                                    controller:
+                                        TextEditingController(
+                                            text: widget.sequence.detectedKey,
+                                          )
+                                          ..selection = TextSelection.collapsed(
+                                            offset: widget
+                                                .sequence
+                                                .detectedKey
+                                                .length,
+                                          ),
+                                    onChanged: (val) {
+                                      widget.sequence.detectedKey = val.isEmpty
+                                          ? 'Auto'
+                                          : val;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Pitch: ${widget.sequence.pitchOverride > 0 ? '+' : ''}${widget.sequence.pitchOverride} Semi',
+                            ),
+                            Slider(
+                              value: widget.sequence.pitchOverride.toDouble(),
+                              min: -12,
+                              max: 12,
+                              divisions: 24,
+                              onChanged: (val) {
+                                setState(() {
+                                  widget.sequence.pitchOverride = val.toInt();
+                                  _audioEngine.updatePitch(val.toInt());
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
