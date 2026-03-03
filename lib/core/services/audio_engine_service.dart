@@ -111,11 +111,15 @@ class AudioEngineService {
 
         // Apply Native Pitch Shifting DSP (ignore Click & Cues from Pitch Shifting!)
         if (!track.isClickOrCues && _currentSequence!.pitchOverride != 0) {
-          source.filters.pitchShiftFilter.activate();
+          if (!source.filters.pitchShiftFilter.isActive) {
+            source.filters.pitchShiftFilter.activate();
+          }
           source.filters.pitchShiftFilter.semitones(soundHandle: handle).value =
               _currentSequence!.pitchOverride.toDouble();
         } else {
-          source.filters.pitchShiftFilter.deactivate();
+          if (source.filters.pitchShiftFilter.isActive) {
+            source.filters.pitchShiftFilter.deactivate();
+          }
         }
       }
     }
@@ -167,11 +171,15 @@ class AudioEngineService {
         final handle = _playingHandles[track.id]!;
 
         if (semitones != 0) {
-          source.filters.pitchShiftFilter.activate();
+          if (!source.filters.pitchShiftFilter.isActive) {
+            source.filters.pitchShiftFilter.activate();
+          }
           source.filters.pitchShiftFilter.semitones(soundHandle: handle).value =
               semitones.toDouble();
         } else {
-          source.filters.pitchShiftFilter.deactivate();
+          if (source.filters.pitchShiftFilter.isActive) {
+            source.filters.pitchShiftFilter.deactivate();
+          }
         }
       }
     }
