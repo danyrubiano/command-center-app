@@ -371,90 +371,96 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                 ),
                               ),
                               child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'SETLIST: ',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        DropdownButton<String>(
-                                          value: _setlist.id == 'dummy'
-                                              ? null
-                                              : _setlist.id,
-                                          dropdownColor: Theme.of(
-                                            context,
-                                          ).canvasColor,
-                                          icon: const Icon(
-                                            Icons.arrow_drop_down,
-                                            color: Colors.greenAccent,
-                                          ),
-                                          hint: const Text(
-                                            'Select...',
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            'SETLIST: ',
                                             style: TextStyle(
-                                              color: Colors.white54,
+                                              fontWeight: FontWeight.bold,
                                               fontSize: 12,
                                             ),
                                           ),
-                                          items: _availableSetlists
-                                              .map(
-                                                (sl) => DropdownMenuItem(
-                                                  value: sl.id,
-                                                  child: Text(
-                                                    sl.name,
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Colors.greenAccent,
-                                                      fontSize: 14,
+                                          DropdownButton<String>(
+                                            value: _setlist.id == 'dummy'
+                                                ? null
+                                                : _setlist.id,
+                                            dropdownColor: Theme.of(
+                                              context,
+                                            ).canvasColor,
+                                            icon: const Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Colors.greenAccent,
+                                            ),
+                                            hint: const Text(
+                                              'Select...',
+                                              style: TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            items: _availableSetlists
+                                                .map(
+                                                  (sl) => DropdownMenuItem(
+                                                    value: sl.id,
+                                                    child: Text(
+                                                      sl.name,
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.greenAccent,
+                                                        fontSize: 14,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              )
-                                              .toList(),
-                                          onChanged: (val) {
-                                            if (val != null) {
-                                              final target = _availableSetlists
-                                                  .firstWhere(
-                                                    (s) => s.id == val,
-                                                  );
-                                              widget.onSetlistChanged?.call(
-                                                target,
-                                              );
-                                            }
-                                          },
-                                          underline: const SizedBox(),
+                                                )
+                                                .toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                final target =
+                                                    _availableSetlists
+                                                        .firstWhere(
+                                                          (s) => s.id == val,
+                                                        );
+                                                widget.onSetlistChanged?.call(
+                                                  target,
+                                                );
+                                              }
+                                            },
+                                            underline: const SizedBox(),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        '${_currentSequenceIndex + 1}. ${currentSequence.name}',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          fontSize: 18,
                                         ),
-                                      ],
-                                    ),
-                                    Text(
-                                      '${_currentSequenceIndex + 1}. ${currentSequence.name}',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        fontSize: 18,
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey} ${currentSequence.pitchOverride != 0 ? '(${currentSequence.pitchOverride > 0 ? '+' : ''}${currentSequence.pitchOverride})' : ''}',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.greenAccent,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey} ${currentSequence.pitchOverride != 0 ? '(${currentSequence.pitchOverride > 0 ? '+' : ''}${currentSequence.pitchOverride})' : ''}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.greenAccent,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
