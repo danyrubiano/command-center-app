@@ -180,7 +180,12 @@ class _LibraryPageState extends State<LibraryPage> {
                             ),
                             title: Row(
                               children: [
-                                Text('${seq.name} - ${seq.detectedKey}'),
+                                Expanded(
+                                  child: Text(
+                                    '${seq.name} - ${seq.detectedKey}',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                                 IconButton(
                                   icon: const Icon(
                                     Icons.edit,

@@ -268,7 +268,10 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('SEQUENCE EDITOR - ${widget.sequence.name}'),
+        title: Text(
+          'SEQUENCE EDITOR - ${widget.sequence.name}',
+          overflow: TextOverflow.ellipsis,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),

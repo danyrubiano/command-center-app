@@ -437,6 +437,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                     Text(
                                       '${_currentSequenceIndex + 1}. ${currentSequence.name}',
                                       textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
@@ -556,36 +558,44 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    currentSequence.name.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  if (nextIndex != _currentSequenceIndex) ...[
-                                    const SizedBox(width: 16),
-                                    const Text(
-                                      'NEXT: ',
-                                      style: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.normal,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        currentSequence.name.toUpperCase(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
                                     ),
-                                    Text(
-                                      _setlist.sequences[nextIndex].name
-                                          .toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.normal,
+                                    if (nextIndex != _currentSequenceIndex) ...[
+                                      const SizedBox(width: 16),
+                                      const Text(
+                                        'NEXT: ',
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.normal,
+                                        ),
                                       ),
-                                    ),
+                                      Flexible(
+                                        child: Text(
+                                          _setlist.sequences[nextIndex].name
+                                              .toUpperCase(),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                               Text(
                                 '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
