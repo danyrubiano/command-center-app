@@ -443,21 +443,85 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                   ),
                   Expanded(
                     flex: 2,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Pitch Override (+0)'),
-                        Slider(
-                          value: 0,
-                          min: -12,
-                          max: 12,
-                          onChanged: (val) {},
-                        ),
-                        const Text(
-                          'Original Key: Am',
-                          style: TextStyle(fontSize: 12, color: Colors.white54),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'BPM',
+                                    isDense: true,
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  controller:
+                                      TextEditingController(
+                                          text:
+                                              widget.sequence.bpm?.toString() ??
+                                              '',
+                                        )
+                                        ..selection = TextSelection.collapsed(
+                                          offset:
+                                              (widget.sequence.bpm
+                                                          ?.toString() ??
+                                                      '')
+                                                  .length,
+                                        ),
+                                  onChanged: (val) {
+                                    widget.sequence.bpm = double.tryParse(val);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Key',
+                                    isDense: true,
+                                  ),
+                                  controller:
+                                      TextEditingController(
+                                          text: widget.sequence.detectedKey,
+                                        )
+                                        ..selection = TextSelection.collapsed(
+                                          offset: widget
+                                              .sequence
+                                              .detectedKey
+                                              .length,
+                                        ),
+                                  onChanged: (val) {
+                                    widget.sequence.detectedKey = val.isEmpty
+                                        ? 'Auto'
+                                        : val;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Pitch: ${widget.sequence.pitchOverride > 0 ? '+' : ''}${widget.sequence.pitchOverride} Semi',
+                          ),
+                          Slider(
+                            value: widget.sequence.pitchOverride.toDouble(),
+                            min: -12,
+                            max: 12,
+                            divisions: 24,
+                            onChanged: (val) {
+                              setState(() {
+                                widget.sequence.pitchOverride = val.toInt();
+                                _audioEngine.updatePitch(val.toInt());
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

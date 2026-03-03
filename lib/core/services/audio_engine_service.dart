@@ -108,6 +108,15 @@ class AudioEngineService {
           paused: true, // Start paused to sync them
         );
         _playingHandles[track.id] = handle;
+
+        // Apply Native Pitch Shifting DSP (ignore Click & Cues from Pitch Shifting!)
+        if (!track.isClickOrCues && _currentSequence!.pitchOverride != 0) {
+          source.filters.pitchShiftFilter.activate();
+          source.filters.pitchShiftFilter.semitones(soundHandle: handle).value =
+              _currentSequence!.pitchOverride.toDouble();
+        } else {
+          source.filters.pitchShiftFilter.deactivate();
+        }
       }
     }
 
@@ -143,6 +152,29 @@ class AudioEngineService {
       SoLoud.instance.stop(handle);
     }
     _playingHandles.clear();
+  }
+
+  /// Updates pitch override dynamically during playback across all non-click tracks.
+  void updatePitch(int semitones) {
+    if (_currentSequence == null) return;
+    _currentSequence!.pitchOverride = semitones;
+
+    for (var track in _currentSequence!.tracks) {
+      if (!track.isClickOrCues &&
+          _loadedSources.containsKey(track.id) &&
+          _playingHandles.containsKey(track.id)) {
+        final source = _loadedSources[track.id]!;
+        final handle = _playingHandles[track.id]!;
+
+        if (semitones != 0) {
+          source.filters.pitchShiftFilter.activate();
+          source.filters.pitchShiftFilter.semitones(soundHandle: handle).value =
+              semitones.toDouble();
+        } else {
+          source.filters.pitchShiftFilter.deactivate();
+        }
+      }
+    }
   }
 
   /// Disposes of current audio data and clears memory

@@ -435,11 +435,21 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     Text(
-                                      '${_currentSequenceIndex + 1}. ${currentSequence.name} [${currentSequence.detectedKey}]',
+                                      '${_currentSequenceIndex + 1}. ${currentSequence.name}',
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white70,
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey} ${currentSequence.pitchOverride != 0 ? '(${currentSequence.pitchOverride > 0 ? '+' : ''}${currentSequence.pitchOverride})' : ''}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.greenAccent,
                                       ),
                                     ),
                                   ],
