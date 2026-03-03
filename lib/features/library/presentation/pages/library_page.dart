@@ -241,6 +241,9 @@ class _LibraryPageState extends State<LibraryPage> {
                                                 await FileExtractionService.deleteSequenceFolder(
                                                   seq,
                                                 );
+                                                await SetlistService.removeSequenceReferencesGlobal(
+                                                  seq.folderPath,
+                                                );
                                                 if (mounted) {
                                                   setState(() {
                                                     _sequences.removeAt(index);

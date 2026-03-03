@@ -96,6 +96,31 @@ class SetlistService {
     }
   }
 
+  /// Scans all saved setlists and physically removes any sequence matching the [folderPath].
+  /// This ensures that deleted sequences don't show up orphaned on the Player screen.
+  static Future<void> removeSequenceReferencesGlobal(String folderPath) async {
+    try {
+      final list = await getSavedSetlists();
+      for (Setlist sl in list) {
+        bool changed = false;
+
+        // Removing items backwards to cleanly avoid shifting indices
+        for (int i = sl.sequences.length - 1; i >= 0; i--) {
+          if (sl.sequences[i].folderPath == folderPath) {
+            sl.sequences.removeAt(i);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          await saveSetlist(sl);
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to remove Sequence references globally: $e');
+    }
+  }
+
   static Future<void> saveLastPlayedSetlistId(String id) async {
     try {
       final docsDir = await SettingsService().getStorageDirectory();
