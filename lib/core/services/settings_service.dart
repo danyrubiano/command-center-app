@@ -93,8 +93,8 @@ class SettingsService {
   /// Gets Cue Track Keywords
   Future<String> getCueTrackKeywords() async {
     if (_prefs == null) await init();
-    return _prefs!.getString(_cueTrackKeywordsKey) ??
-        'cue, cues, guide, guider, guia, vocal, english';
+    return _prefs!.getString('cueKeywords') ??
+        'cues, guide, guider, guia, vocal, english';
   }
 
   /// Sets Cue Track Keywords
