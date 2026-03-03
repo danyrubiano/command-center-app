@@ -220,9 +220,58 @@ class _LibraryPageState extends State<LibraryPage> {
                                     color: Colors.redAccent,
                                   ),
                                   onPressed: () {
-                                    setState(() {
-                                      _sequences.removeAt(index);
-                                    });
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Sequence?'),
+                                        content: Text(
+                                          'Are you sure you want to permanently delete "${seq.name}" from your local hard drive? Audio files will be erased.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                            onPressed: () async {
+                                              try {
+                                                await FileExtractionService.deleteSequenceFolder(
+                                                  seq,
+                                                );
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _sequences.removeAt(index);
+                                                  });
+                                                }
+                                              } catch (e) {
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Delete failed: $e',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                              if (ctx.mounted)
+                                                Navigator.pop(ctx);
+                                            },
+                                            child: const Text(
+                                              'Delete Permanently',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
                                   },
                                 ),
                               ],

@@ -377,4 +377,12 @@ class FileExtractionService {
       pitchOverride: sequence.pitchOverride,
     );
   }
+
+  /// Permanently deletes a sequence folder from the local disk.
+  static Future<void> deleteSequenceFolder(Sequence sequence) async {
+    final Directory dir = Directory(sequence.folderPath);
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  }
 }
