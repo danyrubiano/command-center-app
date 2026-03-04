@@ -452,7 +452,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey} ${currentSequence.pitchOverride != 0 ? '(${currentSequence.pitchOverride > 0 ? '+' : ''}${currentSequence.pitchOverride})' : ''}',
+                                        'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey}',
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
@@ -536,7 +536,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                               ),
                               child: Center(
                                 child: Text(
-                                  'PITCH: ${currentSequence.pitchOverride > 0 ? "+" : ""}${currentSequence.pitchOverride}\nAUTO-NEXT: ${currentSequence.pauseAfterSeconds}s',
+                                  'AUTO-NEXT: ${currentSequence.pauseAfterSeconds}s',
                                   textAlign: TextAlign.center,
                                 ),
                               ),

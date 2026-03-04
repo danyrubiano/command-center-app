@@ -526,22 +526,6 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Pitch: ${widget.sequence.pitchOverride > 0 ? '+' : ''}${widget.sequence.pitchOverride} Semi',
-                            ),
-                            Slider(
-                              value: widget.sequence.pitchOverride.toDouble(),
-                              min: -12,
-                              max: 12,
-                              divisions: 24,
-                              onChanged: (val) {
-                                setState(() {
-                                  widget.sequence.pitchOverride = val.toInt();
-                                  _audioEngine.updatePitch(val.toInt());
-                                });
-                              },
-                            ),
                           ],
                         ),
                       ),
