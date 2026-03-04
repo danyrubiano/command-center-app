@@ -609,6 +609,39 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                               ),
                             ],
                           ),
+                          if (currentSequence.cueTags.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 32,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: currentSequence.cueTags.length,
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final tag = currentSequence!.cueTags[index];
+                                  return ActionChip(
+                                    label: Text(
+                                      tag.name,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    onPressed: () {
+                                      _audioEngine.seek(tag.position);
+                                      if (!_isPlaying) {
+                                        _togglePlayPause();
+                                      }
+                                    },
+                                    backgroundColor: Colors.blueAccent
+                                        .withValues(alpha: 0.2),
+                                    side: const BorderSide(
+                                      color: Colors.blueAccent,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Expanded(
                             child: _isExtractingWaveform

@@ -759,6 +759,30 @@ class _TaggingWaveformSection extends StatelessWidget {
               ),
             ],
           ),
+          if (cueTags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: cueTags.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final tag = cueTags[index];
+                  return ActionChip(
+                    label: Text(tag.name, style: const TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      onSeek(tag.position);
+                    },
+                    backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
+                    side: const BorderSide(color: Colors.blueAccent),
+                    visualDensity: VisualDensity.compact,
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
           Expanded(
             child: Container(
               width: double.infinity,
