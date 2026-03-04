@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:command_center_app/core/services/audio_engine_service.dart';
 import 'package:command_center_app/core/services/setlist_service.dart';
@@ -392,306 +393,324 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'SEQUENCE EDITOR - ${widget.sequence.name}',
-          overflow: TextOverflow.ellipsis,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.save, color: Colors.white),
-            label: const Text(
-              'Save Configuration',
-              style: TextStyle(color: Colors.white),
-            ),
-            onPressed: () async {
-              await SetlistService.updateSequenceReferencesGlobal(
-                widget.sequence.folderPath,
-                widget.sequence,
-              );
-              await FileExtractionService.saveSequenceConfig(widget.sequence);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'Configuration saved across all associated setlists successfully!',
-                  ),
-                  backgroundColor: Colors.greenAccent.shade700,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-            ),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.mediaPlayPause) {
+            if (_isPlaying) {
+              _audioEngine.pause();
+            } else {
+              _audioEngine.play();
+            }
+            setState(() => _isPlaying = !_isPlaying);
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: Text(
+            'SEQUENCE EDITOR - ${widget.sequence.name}',
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            // 1. Top Section (Timeline & Tags)
-            Expanded(
-              flex: 2,
-              child: _isExtractingWaveform
-                  ? Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(
-                              color: Colors.blueAccent,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(_waveformMessage),
-                          ],
-                        ),
-                      ),
-                    )
-                  : _TaggingWaveformSection(
-                      currentPosition: _currentPosition,
-                      totalDuration: _totalDuration,
-                      waveform: _mergedWaveform,
-                      cueTags: _cueTags,
-                      onAutoDetect: _autoDetectCues,
-                      onSeek: (position) {
-                        _audioEngine.seek(position);
-                        if (!_isPlaying) {
-                          _audioEngine.play();
-                          setState(() => _isPlaying = true);
-                        }
-                      },
-                    ),
-            ),
-            const SizedBox(height: 12),
-
-            // 2. Middle Section (Transport & Pitch)
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: Theme.of(context).canvasColor,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white12),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          actions: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save, color: Colors.white),
+              label: const Text(
+                'Save Configuration',
+                style: TextStyle(color: Colors.white),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(
-                            Icons.add_location_alt,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Add Tag',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          onPressed: _addTagAtPlayhead,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueAccent,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.edit, color: Colors.white),
-                          label: const Text(
-                            'Manage Tags',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          onPressed: _manageTags,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[800],
-                          ),
-                        ),
-                      ],
+              onPressed: () async {
+                await SetlistService.updateSequenceReferencesGlobal(
+                  widget.sequence.folderPath,
+                  widget.sequence,
+                );
+                await FileExtractionService.saveSequenceConfig(widget.sequence);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(
+                      'Configuration saved across all associated setlists successfully!',
                     ),
+                    backgroundColor: Colors.greenAccent.shade700,
                   ),
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              _formatDuration(_currentPosition),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.greenAccent,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              '/',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white54,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatDuration(_totalDuration),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _circularButton(
-                              Icons.skip_previous,
-                              Colors.grey,
-                              onTap: () {
-                                _audioEngine.stop();
-                                setState(() {
-                                  _isPlaying = false;
-                                  _currentPosition = Duration.zero;
-                                });
-                              },
-                            ),
-                            const SizedBox(width: 16),
-                            _circularButton(
-                              _isPlaying ? Icons.pause : Icons.play_arrow,
-                              Colors.greenAccent,
-                              size: 56,
-                              onTap: () {
-                                if (_isPlaying) {
-                                  _audioEngine.pause();
-                                } else {
-                                  _audioEngine.play();
-                                }
-                                setState(() => _isPlaying = !_isPlaying);
-                              },
-                            ),
-                            const SizedBox(width: 16),
-                            _circularButton(
-                              Icons.stop,
-                              Colors.redAccent,
-                              onTap: () {
-                                _audioEngine.stop();
-                                setState(() {
-                                  _isPlaying = false;
-                                  _currentPosition = Duration.zero;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                      labelText: 'BPM',
-                                      isDense: true,
-                                    ),
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    controller:
-                                        TextEditingController(
-                                            text:
-                                                widget.sequence.bpm
-                                                    ?.toString() ??
-                                                '',
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset:
-                                                (widget.sequence.bpm
-                                                            ?.toString() ??
-                                                        '')
-                                                    .length,
-                                          ),
-                                    onChanged: (val) {
-                                      widget.sequence.bpm = double.tryParse(
-                                        val,
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                      labelText: 'Key',
-                                      isDense: true,
-                                    ),
-                                    controller:
-                                        TextEditingController(
-                                            text: widget.sequence.detectedKey,
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset: widget
-                                                .sequence
-                                                .detectedKey
-                                                .length,
-                                          ),
-                                    onChanged: (val) {
-                                      widget.sequence.detectedKey = val.isEmpty
-                                          ? 'Auto'
-                                          : val;
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
               ),
             ),
-            const SizedBox(height: 12),
-
-            // 3. Bottom Section (Mixer Configuration)
-            Expanded(
-              flex: 3,
-              child: _MixerConfigurationSection(
-                sequence: widget.sequence,
-                audioEngine: _audioEngine,
-                isPlaying: _isPlaying,
-                masterVuPeak: _masterVuPeak,
-                trackVuPeaks: _trackVuPeaks,
-                onStateChanged: () => setState(() {}),
-              ),
-            ),
+            const SizedBox(width: 16),
           ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            children: [
+              // 1. Top Section (Timeline & Tags)
+              Expanded(
+                flex: 2,
+                child: _isExtractingWaveform
+                    ? Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const CircularProgressIndicator(
+                                color: Colors.blueAccent,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(_waveformMessage),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _TaggingWaveformSection(
+                        currentPosition: _currentPosition,
+                        totalDuration: _totalDuration,
+                        waveform: _mergedWaveform,
+                        cueTags: _cueTags,
+                        onAutoDetect: _autoDetectCues,
+                        onSeek: (position) {
+                          _audioEngine.seek(position);
+                          if (!_isPlaying) {
+                            _audioEngine.play();
+                            setState(() => _isPlaying = true);
+                          }
+                        },
+                      ),
+              ),
+              const SizedBox(height: 12),
+
+              // 2. Middle Section (Transport & Pitch)
+              Container(
+                height: 110,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).canvasColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(
+                              Icons.add_location_alt,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Add Tag',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            onPressed: _addTagAtPlayhead,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.edit, color: Colors.white),
+                            label: const Text(
+                              'Manage Tags',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            onPressed: _manageTags,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                _formatDuration(_currentPosition),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.greenAccent,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                '/',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDuration(_totalDuration),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _circularButton(
+                                Icons.skip_previous,
+                                Colors.grey,
+                                onTap: () {
+                                  _audioEngine.stop();
+                                  setState(() {
+                                    _isPlaying = false;
+                                    _currentPosition = Duration.zero;
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 16),
+                              _circularButton(
+                                _isPlaying ? Icons.pause : Icons.play_arrow,
+                                Colors.greenAccent,
+                                size: 56,
+                                onTap: () {
+                                  if (_isPlaying) {
+                                    _audioEngine.pause();
+                                  } else {
+                                    _audioEngine.play();
+                                  }
+                                  setState(() => _isPlaying = !_isPlaying);
+                                },
+                              ),
+                              const SizedBox(width: 16),
+                              _circularButton(
+                                Icons.stop,
+                                Colors.redAccent,
+                                onTap: () {
+                                  _audioEngine.stop();
+                                  setState(() {
+                                    _isPlaying = false;
+                                    _currentPosition = Duration.zero;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      decoration: const InputDecoration(
+                                        labelText: 'BPM',
+                                        isDense: true,
+                                      ),
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      controller:
+                                          TextEditingController(
+                                              text:
+                                                  widget.sequence.bpm
+                                                      ?.toString() ??
+                                                  '',
+                                            )
+                                            ..selection =
+                                                TextSelection.collapsed(
+                                                  offset:
+                                                      (widget.sequence.bpm
+                                                                  ?.toString() ??
+                                                              '')
+                                                          .length,
+                                                ),
+                                      onChanged: (val) {
+                                        widget.sequence.bpm = double.tryParse(
+                                          val,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Key',
+                                        isDense: true,
+                                      ),
+                                      controller:
+                                          TextEditingController(
+                                              text: widget.sequence.detectedKey,
+                                            )
+                                            ..selection =
+                                                TextSelection.collapsed(
+                                                  offset: widget
+                                                      .sequence
+                                                      .detectedKey
+                                                      .length,
+                                                ),
+                                      onChanged: (val) {
+                                        widget.sequence.detectedKey =
+                                            val.isEmpty ? 'Auto' : val;
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 3. Bottom Section (Mixer Configuration)
+              Expanded(
+                flex: 3,
+                child: _MixerConfigurationSection(
+                  sequence: widget.sequence,
+                  audioEngine: _audioEngine,
+                  isPlaying: _isPlaying,
+                  masterVuPeak: _masterVuPeak,
+                  trackVuPeaks: _trackVuPeaks,
+                  onStateChanged: () => setState(() {}),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
