@@ -2,9 +2,9 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ "main", "developer" ]
+    branches: [ "main", "master", "develop", "feature/*" ]
   pull_request:
-    branches: [ "main", "developer" ]
+    branches: [ "main", "master", "develop" ]
 
 jobs:
   build:
@@ -13,31 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze code
-        run: dart analyze
-
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
-      # Optional: Run tests if you have them in the future
-      # - name: Run tests
-      #   run: flutter test
+      - name: Analyze project source
+        run: flutter analyze
 
-      # Build macOS app to verify compilation works
-      - name: Build macOS app
-        run: flutter build macos --release
-
-      - name: Build Android APK
-        run: flutter build apk --release
-
-      - name: Build iOS App (No Signing)
-        run: flutter build ios --release --no-codesign
+      - name: Run tests
+        run: flutter test --coverage
