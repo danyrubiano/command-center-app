@@ -264,6 +264,63 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     }
   }
 
+  Future<void> _autoDetectCues() async {
+    setState(() {
+      _isExtractingWaveform = true;
+      _waveformMessage = 'Auto-detecting sections from Cues track...';
+    });
+
+    try {
+      final detectedTags = await WaveformService.autoDetectCues(
+        widget.sequence,
+      );
+      if (detectedTags.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _cueTags.addAll(detectedTags);
+            _cueTags.sort((a, b) => a.position.compareTo(b.position));
+            widget.sequence.cueTags = _cueTags;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Successfully auto-detected ${detectedTags.length} sections!',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No spoken cues could be clearly detected, or track was missing.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error detecting cues: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExtractingWaveform = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -338,6 +395,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                       totalDuration: _totalDuration,
                       waveform: _mergedWaveform,
                       cueTags: _cueTags,
+                      onAutoDetect: _autoDetectCues,
                       onSeek: (position) {
                         _audioEngine.seek(position);
                         if (!_isPlaying) {
@@ -583,11 +641,13 @@ class _TaggingWaveformSection extends StatelessWidget {
   final Waveform? waveform;
   final List<CueTag> cueTags;
   final void Function(Duration) onSeek;
+  final VoidCallback onAutoDetect;
 
   const _TaggingWaveformSection({
     required this.currentPosition,
     required this.totalDuration,
     required this.onSeek,
+    required this.onAutoDetect,
     required this.cueTags,
     this.waveform,
   });
@@ -609,8 +669,11 @@ class _TaggingWaveformSection extends StatelessWidget {
             children: [
               const Text('WAVEFORM & TAG EDITOR'),
               TextButton(
-                onPressed: () {},
-                child: const Text('Auto-detect tags from Cues'),
+                onPressed: onAutoDetect,
+                child: const Text(
+                  'Auto-detect tags from Cues',
+                  style: TextStyle(color: Colors.blueAccent),
+                ),
               ),
             ],
           ),

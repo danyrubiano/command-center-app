@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:command_center_app/core/models/sequence.dart';
+import 'package:command_center_app/core/models/track.dart';
 import 'package:just_waveform/just_waveform.dart';
 import 'package:path/path.dart' as p;
 
@@ -149,5 +150,97 @@ class WaveformService {
       }
     }
     return map;
+  }
+
+  /// Automatically parses the Cues track waveform, sweeps for spoken voice peaks,
+  /// groups them into functional vocal blocks, and spits out isolated CueTag sequences
+  /// timed to the moment the speaker finishes announcing the section!
+  static Future<List<CueTag>> autoDetectCues(Sequence sequence) async {
+    // Locate the Guia / Cues track
+    Track? cuesTrack;
+    for (var t in sequence.tracks) {
+      if (t.isClickOrCues) {
+        String lower = t.name.toLowerCase();
+        if (lower.contains('cue') ||
+            lower.contains('gui') ||
+            lower.contains('vocal') ||
+            lower.contains('voz')) {
+          cuesTrack = t;
+          break;
+        }
+      }
+    }
+
+    // Fallback: pick any system track that isn't clearly just the Click/Metronome
+    if (cuesTrack == null) {
+      for (var t in sequence.tracks) {
+        if (t.isClickOrCues &&
+            !t.name.toLowerCase().contains('click') &&
+            !t.name.toLowerCase().contains('clic') &&
+            !t.name.toLowerCase().contains('clk')) {
+          cuesTrack = t;
+          break;
+        }
+      }
+    }
+
+    if (cuesTrack == null) return [];
+
+    final sequenceDir = p.dirname(cuesTrack.filePath);
+    final waveFile = File(p.join(sequenceDir, '${cuesTrack.name}.wave'));
+
+    // If the waveform hasn't been cached, we can't do fast analysis
+    if (!waveFile.existsSync()) return [];
+
+    final waveform = await JustWaveform.parse(waveFile);
+
+    List<CueTag> detectedTags = [];
+    int threshold =
+        1500; // Peak 16-bit threshold to consider "Voice Transient" Active
+    bool inCue = false;
+    double silenceDuration = 0;
+
+    // Waveform Zoom is typically 50 pixels per second, but we verify here.
+    int pixelsPerSecond = (waveform.sampleRate / waveform.samplesPerPixel)
+        .round();
+    if (pixelsPerSecond <= 0) pixelsPerSecond = 50;
+
+    for (int i = 0; i < waveform.length; i++) {
+      int min = waveform.data[i * 2];
+      int max = waveform.data[i * 2 + 1];
+      int amplitude = (max - min).abs();
+
+      if (amplitude > threshold) {
+        if (!inCue) {
+          // Voice burst detected!
+          inCue = true;
+        }
+        // Reset silent counter
+        silenceDuration = 0;
+      } else {
+        if (inCue) {
+          silenceDuration += 1.0 / pixelsPerSecond;
+          // If it goes quiet for 2.0 full seconds, we assume the Voice Cue is completed
+          if (silenceDuration > 2.0) {
+            inCue = false;
+
+            // The end of the block is effectively the pixel we went silent
+            // We step backwards exactly the 2.0 seconds of silence to map the timestamp.
+            int exactEndPixel = i - (2.0 * pixelsPerSecond).toInt();
+            if (exactEndPixel < 0) exactEndPixel = 0;
+
+            Duration pos = Duration(
+              milliseconds: ((exactEndPixel * 1000) / pixelsPerSecond).round(),
+            );
+
+            detectedTags.add(
+              CueTag(name: 'Section ${detectedTags.length + 1}', position: pos),
+            );
+          }
+        }
+      }
+    }
+
+    return detectedTags;
   }
 }
