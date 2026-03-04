@@ -1,0 +1,60 @@
+name: Flutter CD Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write # Needed for uploading releases
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Package macOS App
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -q -r command_center_macos_build.zip *.app
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Build iOS App (No Signing)
+        # Note: Building an actual installable IPA requires Apple certificates
+        # For now we compile a .app payload so we have a build output, then zip it.
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS App (Payload)
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -q -r command_center_ios_payload.zip Payload
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "Automated Release v1.0.${{ github.run_number }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            build/macos/Build/Products/Release/command_center_macos_build.zip
+            build/app/outputs/flutter-apk/app-release.apk
+            build/ios/iphoneos/command_center_ios_payload.zip
