@@ -255,9 +255,9 @@ class _LibraryPageState extends State<LibraryPage> {
                                                   });
                                                 }
                                               } catch (e) {
-                                                if (mounted) {
+                                                if (ctx.mounted) {
                                                   ScaffoldMessenger.of(
-                                                    context,
+                                                    ctx,
                                                   ).showSnackBar(
                                                     SnackBar(
                                                       content: Text(
@@ -267,8 +267,9 @@ class _LibraryPageState extends State<LibraryPage> {
                                                   );
                                                 }
                                               }
-                                              if (ctx.mounted)
+                                              if (ctx.mounted) {
                                                 Navigator.pop(ctx);
+                                              }
                                             },
                                             child: const Text(
                                               'Delete Permanently',

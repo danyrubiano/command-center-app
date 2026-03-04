@@ -127,27 +127,30 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
         final wave = await WaveformService.getMergedWaveform(
           widget.sequence,
           onProgress: (p) {
-            if (mounted)
+            if (mounted) {
               setState(
                 () =>
                     _waveformMessage = 'Analyzing stems: ${(p * 100).toInt()}%',
               );
+            }
           },
         );
         _trackWaveforms = await WaveformService.getTrackWaveforms(
           widget.sequence,
         );
-        if (mounted)
+        if (mounted) {
           setState(() {
             _mergedWaveform = wave;
             _isExtractingWaveform = false;
           });
+        }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _waveformMessage = 'Waveform failed: $e';
             _isExtractingWaveform = false;
           });
+        }
       }
     }
   }

@@ -621,8 +621,9 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                   )
                                 : GestureDetector(
                                     onTapDown: (details) {
-                                      if (_totalDuration.inMilliseconds == 0)
+                                      if (_totalDuration.inMilliseconds == 0) {
                                         return;
+                                      }
                                       RenderBox box =
                                           context.findRenderObject()
                                               as RenderBox;

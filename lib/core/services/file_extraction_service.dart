@@ -362,8 +362,9 @@ class FileExtractionService {
     String newName,
   ) async {
     final Directory oldDir = Directory(sequence.folderPath);
-    if (!await oldDir.exists())
+    if (!await oldDir.exists()) {
       throw Exception('Sequence folder does not exist');
+    }
 
     // Clean name
     final safeName = newName.replaceAll(RegExp(r'[^a-zA-Z0-9 \-]'), ' ').trim();
