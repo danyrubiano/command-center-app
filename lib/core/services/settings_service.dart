@@ -81,7 +81,7 @@ class SettingsService {
   /// Gets Click Track Keywords
   Future<String> getClickTrackKeywords() async {
     if (_prefs == null) await init();
-    return _prefs!.getString(_clickTrackKeywordsKey) ?? 'click, clk, metronome';
+    return _prefs!.getString(_clickTrackKeywordsKey) ?? 'click, clik, clic, metronome';
   }
 
   /// Sets Click Track Keywords

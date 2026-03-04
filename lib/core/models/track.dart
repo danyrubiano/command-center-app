@@ -48,7 +48,7 @@ class Track {
     String path,
     String fileName, {
     bool autoRoute = true,
-    String clickKeywords = 'click, clk, metronome',
+    String clickKeywords = 'click, clik, clic,  metronome',
     String cueKeywords = 'cues, guide, guider, guia, vocal, english',
   }) {
     bool clickCues = _isSystemTrack(fileName, clickKeywords, cueKeywords);
