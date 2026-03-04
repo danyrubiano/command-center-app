@@ -3,7 +3,7 @@ import 'track.dart';
 class Sequence {
   final String id;
   String name;
-  final String folderPath;
+  String folderPath;
   String detectedKey;
   int pitchOverride;
   double? bpm;

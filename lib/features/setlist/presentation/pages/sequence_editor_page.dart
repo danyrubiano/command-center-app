@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:command_center_app/core/services/audio_engine_service.dart';
 import 'package:command_center_app/core/services/setlist_service.dart';
 import 'package:command_center_app/core/services/waveform_service.dart';
+import 'package:command_center_app/core/services/file_extraction_service.dart';
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:just_waveform/just_waveform.dart';
 
@@ -264,6 +265,71 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     }
   }
 
+  void _manageTags() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: Theme.of(context).canvasColor,
+              title: const Text('Manage Cue Tags'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 300,
+                child: _cueTags.isEmpty
+                    ? const Center(child: Text('No tags found.'))
+                    : ListView.builder(
+                        itemCount: _cueTags.length,
+                        itemBuilder: (context, index) {
+                          final tag = _cueTags[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: TextField(
+                              decoration: const InputDecoration(
+                                labelText: 'Section Name',
+                                isDense: true,
+                              ),
+                              controller: TextEditingController(text: tag.name)
+                                ..selection = TextSelection.collapsed(
+                                  offset: tag.name.length,
+                                ),
+                              onChanged: (val) {
+                                tag.name = val;
+                              },
+                            ),
+                            subtitle: Text(_formatDuration(tag.position)),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () {
+                                setModalState(() {
+                                  _cueTags.removeAt(index);
+                                });
+                                setState(() {
+                                  widget.sequence.cueTags = _cueTags;
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _autoDetectCues() async {
     setState(() {
       _isExtractingWaveform = true;
@@ -346,6 +412,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                 widget.sequence.folderPath,
                 widget.sequence,
               );
+              await FileExtractionService.saveSequenceConfig(widget.sequence);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -419,21 +486,36 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                 children: [
                   Expanded(
                     flex: 2,
-                    child: Center(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(
-                          Icons.add_location_alt,
-                          color: Colors.white,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(
+                            Icons.add_location_alt,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Add Tag',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          onPressed: _addTagAtPlayhead,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                          ),
                         ),
-                        label: const Text(
-                          'Add Tag at Playhead',
-                          style: TextStyle(color: Colors.white),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.edit, color: Colors.white),
+                          label: const Text(
+                            'Manage Tags',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          onPressed: _manageTags,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[800],
+                          ),
                         ),
-                        onPressed: _addTagAtPlayhead,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                   Expanded(

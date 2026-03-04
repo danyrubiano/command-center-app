@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -165,16 +166,46 @@ class FileExtractionService {
           });
           final metadata = parseMetadata(sequenceName);
 
-          loadedSequences.add(
-            Sequence(
-              id: sequenceName.toLowerCase().replaceAll(' ', '_'),
-              name: metadata.cleanName,
-              folderPath: entity.path,
-              bpm: metadata.bpm,
-              detectedKey: metadata.key,
-              tracks: tracks,
-            ),
-          );
+          // Try to load local config if user saved edits
+          final configFile = File(p.join(entity.path, '.sequence_config.json'));
+          if (await configFile.exists()) {
+            try {
+              final jsonStr = await configFile.readAsString();
+              final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
+
+              // We reconstruct the sequence but KEEP the actual physical tracks we just scanned
+              Sequence loadedSeq = Sequence.fromJson(jsonMap);
+              loadedSeq.tracks =
+                  tracks; // Overwrite tracks to ensure actual disk mappings
+              loadedSeq.folderPath =
+                  entity.path; // Make sure path is updated to current device
+
+              loadedSequences.add(loadedSeq);
+            } catch (e) {
+              debugPrint('Error loading sequence config for $sequenceName: $e');
+              loadedSequences.add(
+                Sequence(
+                  id: sequenceName.toLowerCase().replaceAll(' ', '_'),
+                  name: metadata.cleanName,
+                  folderPath: entity.path,
+                  bpm: metadata.bpm,
+                  detectedKey: metadata.key,
+                  tracks: tracks,
+                ),
+              );
+            }
+          } else {
+            loadedSequences.add(
+              Sequence(
+                id: sequenceName.toLowerCase().replaceAll(' ', '_'),
+                name: metadata.cleanName,
+                folderPath: entity.path,
+                bpm: metadata.bpm,
+                detectedKey: metadata.key,
+                tracks: tracks,
+              ),
+            );
+          }
         }
       }
     }
@@ -383,6 +414,18 @@ class FileExtractionService {
     final Directory dir = Directory(sequence.folderPath);
     if (await dir.exists()) {
       await dir.delete(recursive: true);
+    }
+  }
+
+  /// Saves the Sequence model configuration independently inside its active folder.
+  static Future<void> saveSequenceConfig(Sequence sequence) async {
+    try {
+      final file = File(p.join(sequence.folderPath, '.sequence_config.json'));
+      final configJson = jsonEncode(sequence.toJson());
+      await file.writeAsString(configJson);
+      debugPrint('Sequence configuration saved to: ${file.path}');
+    } catch (e) {
+      debugPrint('Failed to save individual sequence config: $e');
     }
   }
 }
