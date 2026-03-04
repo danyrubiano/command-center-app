@@ -759,30 +759,6 @@ class _TaggingWaveformSection extends StatelessWidget {
               ),
             ],
           ),
-          if (cueTags.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 32,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: cueTags.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final tag = cueTags[index];
-                  return ActionChip(
-                    label: Text(tag.name, style: const TextStyle(fontSize: 11)),
-                    onPressed: () {
-                      onSeek(tag.position);
-                    },
-                    backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
-                    side: const BorderSide(color: Colors.blueAccent),
-                    visualDensity: VisualDensity.compact,
-                  );
-                },
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -796,11 +772,31 @@ class _TaggingWaveformSection extends StatelessWidget {
                   double localX = details.localPosition.dx;
                   double percentage = (localX / box.size.width).clamp(0.0, 1.0);
 
-                  Duration target = Duration(
-                    milliseconds: (totalDuration.inMilliseconds * percentage)
-                        .toInt(),
-                  );
-                  onSeek(target);
+                  // Hit-test: Check if user tapped directly on a section text overlay box
+                  CueTag? tappedTag;
+                  for (var tag in cueTags) {
+                    double tagX =
+                        (tag.position.inMilliseconds /
+                            totalDuration.inMilliseconds) *
+                        box.size.width;
+                    // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                    if (localX >= tagX - 10 && localX <= tagX + 60) {
+                      tappedTag = tag;
+                      break;
+                    }
+                  }
+
+                  if (tappedTag != null) {
+                    // Instantly snap to section coordinate
+                    onSeek(tappedTag.position);
+                  } else {
+                    // Conventional timeline scrub location
+                    Duration target = Duration(
+                      milliseconds: (totalDuration.inMilliseconds * percentage)
+                          .toInt(),
+                    );
+                    onSeek(target);
+                  }
                 },
                 onHorizontalDragUpdate: (details) {
                   if (totalDuration.inMilliseconds == 0) return;

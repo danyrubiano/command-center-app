@@ -609,40 +609,6 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                               ),
                             ],
                           ),
-                          if (currentSequence.cueTags.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              height: 32,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: currentSequence.cueTags.length,
-                                separatorBuilder: (context, index) =>
-                                    const SizedBox(width: 8),
-                                itemBuilder: (context, index) {
-                                  final tag = currentSequence!.cueTags[index];
-                                  return ActionChip(
-                                    label: Text(
-                                      tag.name,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    onPressed: () {
-                                      _audioEngine.seek(tag.position);
-                                      if (!_isPlaying) {
-                                        _togglePlayPause();
-                                      }
-                                    },
-                                    backgroundColor: Colors.blueAccent
-                                        .withValues(alpha: 0.2),
-                                    side: const BorderSide(
-                                      color: Colors.blueAccent,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 8),
                           Expanded(
                             child: _isExtractingWaveform
                                 ? Center(
@@ -666,13 +632,37 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                             0.0,
                                             1.0,
                                           );
-                                      Duration target = Duration(
-                                        milliseconds:
-                                            (_totalDuration.inMilliseconds *
-                                                    percentage)
-                                                .toInt(),
-                                      );
-                                      _audioEngine.seek(target);
+
+                                      // Hit-test: Check if user tapped directly on a section text overlay box
+                                      CueTag? tappedTag;
+                                      for (var tag
+                                          in currentSequence!.cueTags) {
+                                        double tagX =
+                                            (tag.position.inMilliseconds /
+                                                _totalDuration.inMilliseconds) *
+                                            box.size.width;
+                                        // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                                        if (localX >= tagX - 10 &&
+                                            localX <= tagX + 60) {
+                                          tappedTag = tag;
+                                          break;
+                                        }
+                                      }
+
+                                      if (tappedTag != null) {
+                                        _audioEngine.seek(tappedTag.position);
+                                        if (!_isPlaying) {
+                                          _togglePlayPause();
+                                        }
+                                      } else {
+                                        Duration target = Duration(
+                                          milliseconds:
+                                              (_totalDuration.inMilliseconds *
+                                                      percentage)
+                                                  .toInt(),
+                                        );
+                                        _audioEngine.seek(target);
+                                      }
                                     },
                                     child: Container(
                                       width: double.infinity,
