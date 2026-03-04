@@ -2,9 +2,9 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ "main", "master", "develop", "feature/*" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main", "master", "develop" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   build:
@@ -12,6 +12,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -29,3 +35,9 @@ jobs:
 
       - name: Run tests
         run: flutter test --coverage
+
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+
+      - name: Build iOS App
+        run: flutter build ios --release --no-codesign
