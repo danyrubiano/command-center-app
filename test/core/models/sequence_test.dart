@@ -25,7 +25,7 @@ void main() {
 
     test('toJson and fromJson handle CueTags correctly', () {
       final cueTag = CueTag(name: 'Chorus', position: Duration(seconds: 45));
-      
+
       final sequence = Sequence(
         id: 'seq2',
         name: 'Another Sequence',
@@ -45,7 +45,7 @@ void main() {
 
     test('toJson and fromJson serialize fully mapped sequences', () {
       final track = Track(id: 't1', name: 'Guitar', filePath: '/p/g.wav');
-      
+
       final seq = Sequence(
         id: 'song1',
         name: 'Song 1',
@@ -71,8 +71,11 @@ void main() {
 
   group('CueTag Model', () {
     test('Converts correctly to and from JSON using milliseconds', () {
-      final tag = CueTag(name: 'Verse', position: Duration(milliseconds: 15400));
-      
+      final tag = CueTag(
+        name: 'Verse',
+        position: Duration(milliseconds: 15400),
+      );
+
       final json = tag.toJson();
       expect(json['name'], 'Verse');
       expect(json['positionMs'], 15400);
