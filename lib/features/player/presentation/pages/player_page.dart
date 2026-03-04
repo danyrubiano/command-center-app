@@ -53,12 +53,12 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-
-    // Setup dummy Setlist if none passed, for immediate testing purposes
     _setlist =
-        widget.setlist ?? Setlist(id: 'dummy', name: 'No Setlist Loaded');
+        widget.setlist ??
+        Setlist(id: 'dummy', name: 'No Setlist', sequences: []);
     _loadAvailableSetlists();
     _setupWakelock();
+    HardwareKeyboard.instance.addHandler(_keyHandler);
 
     if (_setlist.sequences.isNotEmpty) {
       _loadSequence(_setlist.sequences[_currentSequenceIndex]);
@@ -79,6 +79,23 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         });
       }
     });
+  }
+
+  bool _keyHandler(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.mediaPlayPause ||
+          event.logicalKey == LogicalKeyboardKey.space) {
+        _togglePlayPause();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.mediaTrackNext) {
+        _skipNext();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.mediaTrackPrevious) {
+        _skipPrevious();
+        return true;
+      }
+    }
+    return false;
   }
 
   Future<void> _setupWakelock() async {
@@ -312,6 +329,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_keyHandler);
     WakelockPlus.disable();
     _timer?.cancel();
     _transitionTimer?.cancel();
@@ -337,453 +355,426 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         ? _currentSequenceIndex + 1
         : _currentSequenceIndex;
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.mediaPlayPause ||
-              event.logicalKey == LogicalKeyboardKey.space) {
-            _togglePlayPause();
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.mediaTrackNext) {
-            _skipNext();
-            return KeyEventResult.handled;
-          } else if (event.logicalKey ==
-              LogicalKeyboardKey.mediaTrackPrevious) {
-            _skipPrevious();
-            return KeyEventResult.handled;
-          }
-        }
-        return KeyEventResult.ignored;
-      },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: currentSequence == null
-            ? const Center(
-                child: Text(
-                  'No Setlist Active',
-                  style: TextStyle(color: Colors.white54),
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  children: [
-                    // 1. Top Section (Setlist & Transport)
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).canvasColor,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: [
-                            // Setlist Area
-                            Expanded(
-                              flex: 2,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(color: Colors.white12),
-                                  ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: currentSequence == null
+          ? const Center(
+              child: Text(
+                'No Setlist Active',
+                style: TextStyle(color: Colors.white54),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  // 1. Top Section (Setlist & Transport)
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).canvasColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        children: [
+                          // Setlist Area
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(color: Colors.white12),
                                 ),
-                                child: Center(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.center,
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'SETLIST: ',
+                              ),
+                              child: Center(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            'SETLIST: ',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          DropdownButton<String>(
+                                            value: _setlist.id == 'dummy'
+                                                ? null
+                                                : _setlist.id,
+                                            dropdownColor: Theme.of(
+                                              context,
+                                            ).canvasColor,
+                                            icon: const Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Colors.greenAccent,
+                                            ),
+                                            hint: const Text(
+                                              'Select...',
                                               style: TextStyle(
-                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white54,
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            DropdownButton<String>(
-                                              value: _setlist.id == 'dummy'
-                                                  ? null
-                                                  : _setlist.id,
-                                              dropdownColor: Theme.of(
-                                                context,
-                                              ).canvasColor,
-                                              icon: const Icon(
-                                                Icons.arrow_drop_down,
-                                                color: Colors.greenAccent,
-                                              ),
-                                              hint: const Text(
-                                                'Select...',
-                                                style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              items: _availableSetlists
-                                                  .map(
-                                                    (sl) => DropdownMenuItem(
-                                                      value: sl.id,
-                                                      child: Text(
-                                                        sl.name,
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: Colors
-                                                              .greenAccent,
-                                                          fontSize: 14,
-                                                        ),
+                                            items: _availableSetlists
+                                                .map(
+                                                  (sl) => DropdownMenuItem(
+                                                    value: sl.id,
+                                                    child: Text(
+                                                      sl.name,
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.greenAccent,
+                                                        fontSize: 14,
                                                       ),
                                                     ),
-                                                  )
-                                                  .toList(),
-                                              onChanged: (val) {
-                                                if (val != null) {
-                                                  final target =
-                                                      _availableSetlists
-                                                          .firstWhere(
-                                                            (s) => s.id == val,
-                                                          );
-                                                  widget.onSetlistChanged?.call(
-                                                    target,
-                                                  );
-                                                }
-                                              },
-                                              underline: const SizedBox(),
-                                            ),
-                                          ],
-                                        ),
-                                        Text(
-                                          '${_currentSequenceIndex + 1}. ${currentSequence.name}',
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            fontSize: 18,
+                                                  ),
+                                                )
+                                                .toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                final target =
+                                                    _availableSetlists
+                                                        .firstWhere(
+                                                          (s) => s.id == val,
+                                                        );
+                                                widget.onSetlistChanged?.call(
+                                                  target,
+                                                );
+                                              }
+                                            },
+                                            underline: const SizedBox(),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey}',
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.greenAccent,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Transport Controls
-                            Expanded(
-                              flex: 3,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _circularButton(
-                                    Icons.skip_previous,
-                                    Colors.grey,
-                                    onTap: _skipPrevious,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _isTransitioning
-                                      ? Container(
-                                          width: 64,
-                                          height: 64,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.orange,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '$_transitionCountdown',
-                                              style: const TextStyle(
-                                                color: Colors.orange,
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      : _circularButton(
-                                          _isPlaying
-                                              ? Icons.pause
-                                              : Icons.play_arrow,
-                                          Colors.greenAccent,
-                                          size: 64,
-                                          onTap: _togglePlayPause,
-                                        ),
-                                  const SizedBox(width: 16),
-                                  _circularButton(
-                                    Icons.stop,
-                                    Colors.redAccent,
-                                    onTap: _stopAndReset,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _circularButton(
-                                    Icons.skip_next,
-                                    Colors.grey,
-                                    onTap: _skipNext,
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Pitch / Tempo Area
-                            Expanded(
-                              flex: 1,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    left: BorderSide(color: Colors.white12),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'AUTO-NEXT: ${currentSequence.pauseAfterSeconds}s',
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 2. Middle Section (Waveform & Timeline)
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).canvasColor,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          currentSequence.name.toUpperCase(),
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        '${_currentSequenceIndex + 1}. ${currentSequence.name}',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          fontSize: 18,
                                         ),
                                       ),
-                                      if (nextIndex !=
-                                          _currentSequenceIndex) ...[
-                                        const SizedBox(width: 16),
-                                        const Text(
-                                          'NEXT: ',
-                                          style: TextStyle(
-                                            color: Colors.white38,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'BPM: ${currentSequence.bpm?.toStringAsFixed(1) ?? '--'} | Key: ${currentSequence.detectedKey}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.greenAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Transport Controls
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _circularButton(
+                                  Icons.skip_previous,
+                                  Colors.grey,
+                                  onTap: _skipPrevious,
+                                ),
+                                const SizedBox(width: 16),
+                                _isTransitioning
+                                    ? Container(
+                                        width: 64,
+                                        height: 64,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.orange,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$_transitionCountdown',
+                                            style: const TextStyle(
+                                              color: Colors.orange,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : _circularButton(
+                                        _isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                        Colors.greenAccent,
+                                        size: 64,
+                                        onTap: _togglePlayPause,
+                                      ),
+                                const SizedBox(width: 16),
+                                _circularButton(
+                                  Icons.stop,
+                                  Colors.redAccent,
+                                  onTap: _stopAndReset,
+                                ),
+                                const SizedBox(width: 16),
+                                _circularButton(
+                                  Icons.skip_next,
+                                  Colors.grey,
+                                  onTap: _skipNext,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Pitch / Tempo Area
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  left: BorderSide(color: Colors.white12),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'AUTO-NEXT: ${currentSequence.pauseAfterSeconds}s',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 2. Middle Section (Waveform & Timeline)
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).canvasColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        currentSequence.name.toUpperCase(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (nextIndex != _currentSequenceIndex) ...[
+                                      const SizedBox(width: 16),
+                                      const Text(
+                                        'NEXT: ',
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: Text(
+                                          _setlist.sequences[nextIndex].name
+                                              .toUpperCase(),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white54,
                                             fontSize: 12,
                                             fontWeight: FontWeight.normal,
                                           ),
                                         ),
-                                        Flexible(
-                                          child: Text(
-                                            _setlist.sequences[nextIndex].name
-                                                .toUpperCase(),
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.normal,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
-                                  style: const TextStyle(color: Colors.white54),
-                                ),
-                              ],
-                            ),
-                            Expanded(
-                              child: _isExtractingWaveform
-                                  ? Center(
-                                      child: Text(
-                                        _waveformMessage,
-                                        style: const TextStyle(
-                                          color: Colors.blueAccent,
-                                        ),
                                       ),
-                                    )
-                                  : GestureDetector(
-                                      onTapDown: (details) {
-                                        if (_totalDuration.inMilliseconds ==
-                                            0) {
-                                          return;
-                                        }
-                                        RenderBox box =
-                                            context.findRenderObject()
-                                                as RenderBox;
-                                        double localX =
-                                            details.localPosition.dx;
-                                        double percentage =
-                                            (localX / box.size.width).clamp(
-                                              0.0,
-                                              1.0,
-                                            );
-
-                                        // Hit-test: Check if user tapped directly on a section text overlay box
-                                        CueTag? tappedTag;
-                                        for (var tag
-                                            in currentSequence!.cueTags) {
-                                          double tagX =
-                                              (tag.position.inMilliseconds /
-                                                  _totalDuration
-                                                      .inMilliseconds) *
-                                              box.size.width;
-                                          // Provide a generous 20-pixel physical hit radius bounding box around the text start
-                                          if (localX >= tagX - 10 &&
-                                              localX <= tagX + 60) {
-                                            tappedTag = tag;
-                                            break;
-                                          }
-                                        }
-
-                                        if (tappedTag != null) {
-                                          _audioEngine.seek(tappedTag.position);
-                                          if (!_isPlaying) {
-                                            _togglePlayPause();
-                                          }
-                                        } else {
-                                          Duration target = Duration(
-                                            milliseconds:
-                                                (_totalDuration.inMilliseconds *
-                                                        percentage)
-                                                    .toInt(),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
+                                style: const TextStyle(color: Colors.white54),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: _isExtractingWaveform
+                                ? Center(
+                                    child: Text(
+                                      _waveformMessage,
+                                      style: const TextStyle(
+                                        color: Colors.blueAccent,
+                                      ),
+                                    ),
+                                  )
+                                : GestureDetector(
+                                    onTapDown: (details) {
+                                      if (_totalDuration.inMilliseconds == 0) {
+                                        return;
+                                      }
+                                      RenderBox box =
+                                          context.findRenderObject()
+                                              as RenderBox;
+                                      double localX = details.localPosition.dx;
+                                      double percentage =
+                                          (localX / box.size.width).clamp(
+                                            0.0,
+                                            1.0,
                                           );
-                                          _audioEngine.seek(target);
+
+                                      // Hit-test: Check if user tapped directly on a section text overlay box
+                                      CueTag? tappedTag;
+                                      for (var tag
+                                          in currentSequence!.cueTags) {
+                                        double tagX =
+                                            (tag.position.inMilliseconds /
+                                                _totalDuration.inMilliseconds) *
+                                            box.size.width;
+                                        // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                                        if (localX >= tagX - 10 &&
+                                            localX <= tagX + 60) {
+                                          tappedTag = tag;
+                                          break;
                                         }
-                                      },
-                                      child: Container(
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        color: Colors.black26,
-                                        child: CustomPaint(
-                                          painter: _LiveTimelinePainter(
-                                            currentPosition: _currentPosition,
-                                            totalDuration: _totalDuration,
-                                            waveform: _mergedWaveform,
-                                            cueTags: currentSequence.cueTags,
-                                          ),
+                                      }
+
+                                      if (tappedTag != null) {
+                                        _audioEngine.seek(tappedTag.position);
+                                        if (!_isPlaying) {
+                                          _togglePlayPause();
+                                        }
+                                      } else {
+                                        Duration target = Duration(
+                                          milliseconds:
+                                              (_totalDuration.inMilliseconds *
+                                                      percentage)
+                                                  .toInt(),
+                                        );
+                                        _audioEngine.seek(target);
+                                      }
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      color: Colors.black26,
+                                      child: CustomPaint(
+                                        painter: _LiveTimelinePainter(
+                                          currentPosition: _currentPosition,
+                                          totalDuration: _totalDuration,
+                                          waveform: _mergedWaveform,
+                                          cueTags: currentSequence.cueTags,
                                         ),
                                       ),
                                     ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 3. Bottom Section (Mixer)
-                    Expanded(
-                      flex: 5,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).canvasColor,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            // Dynamic Tracks
-                            Expanded(
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: currentSequence.tracks.length,
-                                itemBuilder: (context, index) {
-                                  Track t = currentSequence!.tracks[index];
-                                  Color tColor = t.isClickOrCues
-                                      ? Colors.yellow
-                                      : Colors.blueAccent;
-                                  return _LiveTrackStrip(
-                                    track: t,
-                                    color: tColor,
-                                    engine: _audioEngine,
-                                    currentVuPeak: _trackVuPeaks[t.id] ?? 0.0,
-                                    isPlaying: _isPlaying,
-                                    isMuted: t.mute,
-                                    isSoloed: t.solo,
-                                    onStateChanged: () => setState(() {}),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            // Master Fader
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(
-                                    color: Colors.white12,
-                                    width: 2,
                                   ),
-                                ),
-                              ),
-                              child: _LiveTrackStrip(
-                                track: Track(
-                                  id: 'master',
-                                  name: 'Master',
-                                  filePath: '',
-                                ),
-                                color: Colors.white,
-                                isMaster: true,
-                                engine: _audioEngine,
-                                currentVuPeak: _masterVuPeak,
-                                isPlaying: _isPlaying,
-                                isMuted: _audioEngine.globalMuted,
-                                isSoloed: false,
-                                onStateChanged: () => setState(() {}),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Bottom Section (Mixer)
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).canvasColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          // Dynamic Tracks
+                          Expanded(
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: currentSequence.tracks.length,
+                              itemBuilder: (context, index) {
+                                Track t = currentSequence!.tracks[index];
+                                Color tColor = t.isClickOrCues
+                                    ? Colors.yellow
+                                    : Colors.blueAccent;
+                                return _LiveTrackStrip(
+                                  track: t,
+                                  color: tColor,
+                                  engine: _audioEngine,
+                                  currentVuPeak: _trackVuPeaks[t.id] ?? 0.0,
+                                  isPlaying: _isPlaying,
+                                  isMuted: t.mute,
+                                  isSoloed: t.solo,
+                                  onStateChanged: () => setState(() {}),
+                                );
+                              },
+                            ),
+                          ),
+
+                          // Master Fader
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                  color: Colors.white12,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: _LiveTrackStrip(
+                              track: Track(
+                                id: 'master',
+                                name: 'Master',
+                                filePath: '',
+                              ),
+                              color: Colors.white,
+                              isMaster: true,
+                              engine: _audioEngine,
+                              currentVuPeak: _masterVuPeak,
+                              isPlaying: _isPlaying,
+                              isMuted: _audioEngine.globalMuted,
+                              isSoloed: false,
+                              onStateChanged: () => setState(() {}),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-      ),
+            ),
     );
   }
 
