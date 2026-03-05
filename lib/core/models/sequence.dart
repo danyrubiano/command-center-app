@@ -1,5 +1,7 @@
 import 'track.dart';
 
+enum TransitionAction { stop, autoAdvance }
+
 class Sequence {
   final String id;
   String name;
@@ -7,7 +9,9 @@ class Sequence {
   String detectedKey;
   int pitchOverride;
   double? bpm;
-  int pauseAfterSeconds;
+  int
+  pauseAfterSeconds; // Negative values mean crossfade, 0 means instant gapless, positive means wait
+  TransitionAction transitionAction;
 
   List<CueTag> cueTags;
 
@@ -20,7 +24,10 @@ class Sequence {
     this.detectedKey = 'Auto',
     this.pitchOverride = 0,
     this.bpm,
-    this.pauseAfterSeconds = 5,
+    this.pauseAfterSeconds =
+        0, // Default to instant gapless if autoAdvance is chosen
+    this.transitionAction =
+        TransitionAction.stop, // Default behavior is to stop securely
     this.cueTags = const [],
     required this.tracks,
   });
@@ -33,6 +40,7 @@ class Sequence {
     'pitchOverride': pitchOverride,
     'bpm': bpm,
     'pauseAfterSeconds': pauseAfterSeconds,
+    'transitionAction': transitionAction.name,
     'cueTags': cueTags.map((e) => e.toJson()).toList(),
     'tracks': tracks.map((e) => e.toJson()).toList(),
   };
@@ -45,7 +53,11 @@ class Sequence {
       detectedKey: json['detectedKey'] ?? 'Auto',
       pitchOverride: json['pitchOverride'] ?? 0,
       bpm: json['bpm'] != null ? (json['bpm'] as num).toDouble() : null,
-      pauseAfterSeconds: json['pauseAfterSeconds'] ?? 5,
+      pauseAfterSeconds: json['pauseAfterSeconds'] ?? 0,
+      transitionAction:
+          (json['transitionAction'] == TransitionAction.autoAdvance.name)
+          ? TransitionAction.autoAdvance
+          : TransitionAction.stop,
       cueTags:
           (json['cueTags'] as List?)?.map((e) => CueTag.fromJson(e)).toList() ??
           [],

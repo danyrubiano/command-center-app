@@ -115,6 +115,18 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     if (_totalDuration.inMilliseconds > 0 &&
         _currentPosition.inMilliseconds >=
             _totalDuration.inMilliseconds - 100) {
+      if (_currentSequenceIndex >= 0 &&
+          _currentSequenceIndex < _setlist.sequences.length) {
+        final currentSeq = _setlist.sequences[_currentSequenceIndex];
+        if (currentSeq.transitionAction == TransitionAction.stop) {
+          _audioEngine.stop();
+          setState(() {
+            _isPlaying = false;
+            _currentPosition = Duration.zero;
+          });
+          return;
+        }
+      }
       _triggerAutoTransition();
     }
   }
