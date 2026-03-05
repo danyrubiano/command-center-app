@@ -15,9 +15,10 @@ To explore the application deeply, please review our comprehensive documentation
 ## Quick Start
 
 1. Clone the repository.
-2. Run `flutter pub get`.
-3. Launch on macOS: `flutter run -d macos`.
-4. Import a `.zip` file of audio stems into the **Library** interface!
+2. Initialize local Git pre-commit hooks: `git config core.hooksPath .githooks`
+3. Run `flutter pub get`.
+4. Launch on macOS: `flutter run -d macos`.
+5. Import a `.zip` file of audio stems into the **Library** interface!
 
 ## Setup Dependencies (C++)
 Because we use hardware-accelerated audio (`flutter_soloud`), compiling for the first time may require building local binaries using CMake on your respective platform toolchain natively. 
