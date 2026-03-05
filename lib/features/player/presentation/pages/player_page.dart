@@ -638,65 +638,70 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                       ),
                                     ),
                                   )
-                                : GestureDetector(
-                                    onTapDown: (details) {
-                                      if (_totalDuration.inMilliseconds == 0) {
-                                        return;
-                                      }
-                                      RenderBox box =
-                                          context.findRenderObject()
-                                              as RenderBox;
-                                      double localX = details.localPosition.dx;
-                                      double percentage =
-                                          (localX / box.size.width).clamp(
-                                            0.0,
-                                            1.0,
-                                          );
+                                : LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return GestureDetector(
+                                        onTapDown: (details) {
+                                          if (_totalDuration.inMilliseconds ==
+                                              0) {
+                                            return;
+                                          }
+                                          double localX =
+                                              details.localPosition.dx;
+                                          double percentage =
+                                              (localX / constraints.maxWidth)
+                                                  .clamp(0.0, 1.0);
 
-                                      // Hit-test: Check if user tapped directly on a section text overlay box
-                                      CueTag? tappedTag;
-                                      for (var tag
-                                          in currentSequence!.cueTags) {
-                                        double tagX =
-                                            (tag.position.inMilliseconds /
-                                                _totalDuration.inMilliseconds) *
-                                            box.size.width;
-                                        // Provide a generous 20-pixel physical hit radius bounding box around the text start
-                                        if (localX >= tagX - 10 &&
-                                            localX <= tagX + 60) {
-                                          tappedTag = tag;
-                                          break;
-                                        }
-                                      }
+                                          // Hit-test: Check if user tapped directly on a section text overlay box
+                                          CueTag? tappedTag;
+                                          for (var tag
+                                              in currentSequence!.cueTags) {
+                                            double tagX =
+                                                (tag.position.inMilliseconds /
+                                                    _totalDuration
+                                                        .inMilliseconds) *
+                                                constraints.maxWidth;
+                                            // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                                            if (localX >= tagX - 10 &&
+                                                localX <= tagX + 60) {
+                                              tappedTag = tag;
+                                              break;
+                                            }
+                                          }
 
-                                      if (tappedTag != null) {
-                                        _audioEngine.seek(tappedTag.position);
-                                        if (!_isPlaying) {
-                                          _togglePlayPause();
-                                        }
-                                      } else {
-                                        Duration target = Duration(
-                                          milliseconds:
-                                              (_totalDuration.inMilliseconds *
-                                                      percentage)
-                                                  .toInt(),
-                                        );
-                                        _audioEngine.seek(target);
-                                      }
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      color: Colors.black26,
-                                      child: CustomPaint(
-                                        painter: _LiveTimelinePainter(
-                                          currentPosition: _currentPosition,
-                                          totalDuration: _totalDuration,
-                                          waveform: _mergedWaveform,
-                                          cueTags: currentSequence.cueTags,
+                                          if (tappedTag != null) {
+                                            _audioEngine.seek(
+                                              tappedTag.position,
+                                            );
+                                            if (!_isPlaying) {
+                                              _togglePlayPause();
+                                            }
+                                          } else {
+                                            Duration target = Duration(
+                                              milliseconds:
+                                                  (_totalDuration
+                                                              .inMilliseconds *
+                                                          percentage)
+                                                      .toInt(),
+                                            );
+                                            _audioEngine.seek(target);
+                                          }
+                                        },
+                                        child: Container(
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          color: Colors.black26,
+                                          child: CustomPaint(
+                                            painter: _LiveTimelinePainter(
+                                              currentPosition: _currentPosition,
+                                              totalDuration: _totalDuration,
+                                              waveform: _mergedWaveform,
+                                              cueTags: currentSequence!.cueTags,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   ),
                           ),
                         ],

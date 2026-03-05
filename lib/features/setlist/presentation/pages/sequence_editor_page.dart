@@ -786,61 +786,70 @@ class _TaggingWaveformSection extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
               color: Colors.black26,
-              child: GestureDetector(
-                onTapDown: (details) {
-                  if (totalDuration.inMilliseconds == 0) return;
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return GestureDetector(
+                    onTapDown: (details) {
+                      if (totalDuration.inMilliseconds == 0) return;
 
-                  RenderBox box = context.findRenderObject() as RenderBox;
-                  double localX = details.localPosition.dx;
-                  double percentage = (localX / box.size.width).clamp(0.0, 1.0);
+                      double localX = details.localPosition.dx;
+                      double percentage = (localX / constraints.maxWidth).clamp(
+                        0.0,
+                        1.0,
+                      );
 
-                  // Hit-test: Check if user tapped directly on a section text overlay box
-                  CueTag? tappedTag;
-                  for (var tag in cueTags) {
-                    double tagX =
-                        (tag.position.inMilliseconds /
-                            totalDuration.inMilliseconds) *
-                        box.size.width;
-                    // Provide a generous 20-pixel physical hit radius bounding box around the text start
-                    if (localX >= tagX - 10 && localX <= tagX + 60) {
-                      tappedTag = tag;
-                      break;
-                    }
-                  }
+                      // Hit-test: Check if user tapped directly on a section text overlay box
+                      CueTag? tappedTag;
+                      for (var tag in cueTags) {
+                        double tagX =
+                            (tag.position.inMilliseconds /
+                                totalDuration.inMilliseconds) *
+                            constraints.maxWidth;
+                        // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                        if (localX >= tagX - 10 && localX <= tagX + 60) {
+                          tappedTag = tag;
+                          break;
+                        }
+                      }
 
-                  if (tappedTag != null) {
-                    // Instantly snap to section coordinate
-                    onSeek(tappedTag.position);
-                  } else {
-                    // Conventional timeline scrub location
-                    Duration target = Duration(
-                      milliseconds: (totalDuration.inMilliseconds * percentage)
-                          .toInt(),
-                    );
-                    onSeek(target);
-                  }
-                },
-                onHorizontalDragUpdate: (details) {
-                  if (totalDuration.inMilliseconds == 0) return;
+                      if (tappedTag != null) {
+                        // Instantly snap to section coordinate
+                        onSeek(tappedTag.position);
+                      } else {
+                        // Conventional timeline scrub location
+                        Duration target = Duration(
+                          milliseconds:
+                              (totalDuration.inMilliseconds * percentage)
+                                  .toInt(),
+                        );
+                        onSeek(target);
+                      }
+                    },
+                    onHorizontalDragUpdate: (details) {
+                      if (totalDuration.inMilliseconds == 0) return;
 
-                  RenderBox box = context.findRenderObject() as RenderBox;
-                  double localX = details.localPosition.dx;
-                  double percentage = (localX / box.size.width).clamp(0.0, 1.0);
+                      double localX = details.localPosition.dx;
+                      double percentage = (localX / constraints.maxWidth).clamp(
+                        0.0,
+                        1.0,
+                      );
 
-                  Duration target = Duration(
-                    milliseconds: (totalDuration.inMilliseconds * percentage)
-                        .toInt(),
+                      Duration target = Duration(
+                        milliseconds:
+                            (totalDuration.inMilliseconds * percentage).toInt(),
+                      );
+                      onSeek(target);
+                    },
+                    child: CustomPaint(
+                      painter: _TimelinePainter(
+                        currentPosition: currentPosition,
+                        totalDuration: totalDuration,
+                        waveform: waveform,
+                        cueTags: cueTags,
+                      ),
+                    ),
                   );
-                  onSeek(target);
                 },
-                child: CustomPaint(
-                  painter: _TimelinePainter(
-                    currentPosition: currentPosition,
-                    totalDuration: totalDuration,
-                    waveform: waveform,
-                    cueTags: cueTags,
-                  ),
-                ),
               ),
             ),
           ),
