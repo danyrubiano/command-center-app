@@ -139,7 +139,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
       if (_totalDuration.inMilliseconds > 0 &&
           _currentPosition.inMilliseconds >=
               _totalDuration.inMilliseconds - 100) {
-        _audioEngine.seek(Duration.zero);
+        _triggerSeek(Duration.zero);
       }
       return;
     }
@@ -162,21 +162,30 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     if (currentTag != null && nextTag != null) {
       if (_currentPosition.inMilliseconds >=
           nextTag.position.inMilliseconds - 100) {
-        _audioEngine.seek(currentTag.position);
+        _triggerSeek(currentTag.position);
       }
     } else if (currentTag != null && nextTag == null) {
       if (_totalDuration.inMilliseconds > 0 &&
           _currentPosition.inMilliseconds >=
               _totalDuration.inMilliseconds - 100) {
-        _audioEngine.seek(currentTag.position);
+        _triggerSeek(currentTag.position);
       }
     } else if (currentTag == null && currentSeq.cueTags.isNotEmpty) {
       // We are before the first tag, loop back to the beginning if we hit the first tag
       if (_currentPosition.inMilliseconds >=
           currentSeq.cueTags.first.position.inMilliseconds - 100) {
-        _audioEngine.seek(Duration.zero);
+        _triggerSeek(Duration.zero);
       }
     }
+  }
+
+  void _triggerSeek(Duration position) {
+    if (_isSeeking) return;
+    _isSeeking = true;
+    _audioEngine.seek(position);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _isSeeking = false);
+    });
   }
 
   void _checkAutoTransition() {
@@ -758,20 +767,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                           }
 
                                           if (tappedTag != null) {
-                                            _isSeeking = true;
-                                            _audioEngine.seek(
-                                              tappedTag.position,
-                                            );
-                                            Future.delayed(
-                                              const Duration(milliseconds: 300),
-                                              () {
-                                                if (mounted) {
-                                                  setState(
-                                                    () => _isSeeking = false,
-                                                  );
-                                                }
-                                              },
-                                            );
+                                            _triggerSeek(tappedTag.position);
                                             if (!_isPlaying) {
                                               _togglePlayPause();
                                             }
@@ -783,18 +779,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                                           percentage)
                                                       .toInt(),
                                             );
-                                            _isSeeking = true;
-                                            _audioEngine.seek(target);
-                                            Future.delayed(
-                                              const Duration(milliseconds: 300),
-                                              () {
-                                                if (mounted) {
-                                                  setState(
-                                                    () => _isSeeking = false,
-                                                  );
-                                                }
-                                              },
-                                            );
+                                            _triggerSeek(target);
                                           }
                                         },
                                         child: Container(
