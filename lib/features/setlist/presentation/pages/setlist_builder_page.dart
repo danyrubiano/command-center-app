@@ -406,12 +406,10 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                         Icons.play_circle_fill,
                                         color: Colors.white,
                                       ),
-                                      label: const Flexible(
-                                        child: Text(
-                                          'Load to Player',
-                                          style: TextStyle(color: Colors.white),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                      label: const Text(
+                                        'Load to Player',
+                                        style: TextStyle(color: Colors.white),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       onPressed: () {
                                         if (widget.onSetlistActivated != null) {
@@ -429,12 +427,10 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                       Icons.save,
                                       color: Colors.white,
                                     ),
-                                    label: const Flexible(
-                                      child: Text(
-                                        'Save Setlist',
-                                        style: TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    label: const Text(
+                                      'Save Setlist',
+                                      style: TextStyle(color: Colors.white),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     onPressed: _saveCurrentSetlist,
                                     style: ElevatedButton.styleFrom(
@@ -448,12 +444,10 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                       Icons.file_download,
                                       color: Colors.white,
                                     ),
-                                    label: const Flexible(
-                                      child: Text(
-                                        'Export Config',
-                                        style: TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    label: const Text(
+                                      'Export Config',
+                                      style: TextStyle(color: Colors.white),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     onPressed: _exportSetlist,
                                     style: ElevatedButton.styleFrom(
