@@ -476,7 +476,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                         ],
                                       ),
                                       subtitle: Text(
-                                        'Pause After: ${seq.pauseAfterSeconds}s | Key: ${seq.detectedKey}',
+                                        'Transitions: ${seq.transitionAction.name} | Wait: ${seq.pauseAfterSeconds}s | Key: ${seq.detectedKey}',
                                       ),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -507,9 +507,12 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                               Icons.timer,
                                               color: Colors.white70,
                                             ),
-                                            tooltip: 'Edit Pause Duration',
+                                            tooltip: 'Edit End Behavior',
                                             onPressed: () {
-                                              _editPauseDuration(seq, index);
+                                              _editTransitionBehavior(
+                                                seq,
+                                                index,
+                                              );
                                             },
                                           ),
                                           IconButton(
@@ -547,38 +550,91 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     );
   }
 
-  void _editPauseDuration(Sequence seq, int index) {
-    TextEditingController ctrl = TextEditingController(
+  void _editTransitionBehavior(Sequence seq, int index) {
+    TransitionAction currentAction = seq.transitionAction;
+    TextEditingController waitCtrl = TextEditingController(
       text: seq.pauseAfterSeconds.toString(),
     );
+
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Edit Auto-Pause Duration'),
-          content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(labelText: 'Seconds'),
-            keyboardType: TextInputType.number,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final int? val = int.tryParse(ctrl.text);
-                if (val != null) {
-                  setState(() {
-                    _currentSetlist!.sequences[index].pauseAfterSeconds = val;
-                  });
-                }
-                Navigator.pop(ctx);
-              },
-              child: const Text('Save'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('End Behavior'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Action'),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<TransitionAction>(
+                        value: currentAction,
+                        isDense: true,
+                        items: const [
+                          DropdownMenuItem(
+                            value: TransitionAction.stop,
+                            child: Text(
+                              'Stop & Wait',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: TransitionAction.autoAdvance,
+                            child: Text(
+                              'Auto-Advance Gapless',
+                              style: TextStyle(color: Colors.greenAccent),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              currentAction = val;
+                              if (val == TransitionAction.stop) {
+                                waitCtrl.text = '0';
+                              }
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: waitCtrl,
+                    decoration: InputDecoration(
+                      labelText: currentAction == TransitionAction.stop
+                          ? 'Ignored'
+                          : 'Wait (sec)',
+                    ),
+                    enabled: currentAction == TransitionAction.autoAdvance,
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final int? val = int.tryParse(waitCtrl.text);
+                    setState(() {
+                      _currentSetlist!.sequences[index].transitionAction =
+                          currentAction;
+                      _currentSetlist!.sequences[index].pauseAfterSeconds =
+                          val ?? 0;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
