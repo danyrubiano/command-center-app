@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# A simple pre-commit hook that runs dart format, flutter analyze, and flutter test
+
+echo -e "\n🧪 Running Pre-Commit Checkers..."
+
+echo -e "\n1️⃣  Running dart format..."
+# Format check: We don't want to format files automatically during commit because 
+# that can leave untracked changes. We just enforce that all changes are already formatted.
+if ! dart format --output=none --set-exit-if-changed .; then
+    echo "❌ Dart format failed! Please run 'dart format .' and stage the changes before committing."
+    exit 1
+fi
+echo "✅ Formatting looks good!"
+
+echo -e "\n2️⃣  Running flutter analyze..."
+if ! flutter analyze; then
+    echo "❌ Flutter analyze failed! Please fix the static typing or linter issues mentioned above."
+    exit 1
+fi
+echo "✅ Linter passed!"
+
+echo -e "\n3️⃣  Running flutter test..."
+if ! flutter test; then
+    echo "❌ Unit tests failed! Please fix failing unit tests before committing."
+    exit 1
+fi
+echo "✅ Unit tests passed!"
+
+echo -e "\n🚀 All pre-commit checks successfully passed! Committing changes...\n"
+exit 0

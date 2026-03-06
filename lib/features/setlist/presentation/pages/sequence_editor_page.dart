@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:command_center_app/core/services/audio_engine_service.dart';
 import 'package:command_center_app/core/services/setlist_service.dart';
@@ -56,6 +57,23 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
         });
       }
     });
+    HardwareKeyboard.instance.addHandler(_keyHandler);
+  }
+
+  bool _keyHandler(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.mediaPlayPause ||
+          event.logicalKey == LogicalKeyboardKey.space) {
+        if (_isPlaying) {
+          _audioEngine.pause();
+        } else {
+          _audioEngine.play();
+        }
+        setState(() => _isPlaying = !_isPlaying);
+        return true;
+      }
+    }
+    return false;
   }
 
   void _updateVuPeak() {
@@ -157,6 +175,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_keyHandler);
     _timer?.cancel();
     _audioEngine.stopAndUnload();
     super.dispose();
@@ -767,61 +786,70 @@ class _TaggingWaveformSection extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
               color: Colors.black26,
-              child: GestureDetector(
-                onTapDown: (details) {
-                  if (totalDuration.inMilliseconds == 0) return;
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return GestureDetector(
+                    onTapDown: (details) {
+                      if (totalDuration.inMilliseconds == 0) return;
 
-                  RenderBox box = context.findRenderObject() as RenderBox;
-                  double localX = details.localPosition.dx;
-                  double percentage = (localX / box.size.width).clamp(0.0, 1.0);
+                      double localX = details.localPosition.dx;
+                      double percentage = (localX / constraints.maxWidth).clamp(
+                        0.0,
+                        1.0,
+                      );
 
-                  // Hit-test: Check if user tapped directly on a section text overlay box
-                  CueTag? tappedTag;
-                  for (var tag in cueTags) {
-                    double tagX =
-                        (tag.position.inMilliseconds /
-                            totalDuration.inMilliseconds) *
-                        box.size.width;
-                    // Provide a generous 20-pixel physical hit radius bounding box around the text start
-                    if (localX >= tagX - 10 && localX <= tagX + 60) {
-                      tappedTag = tag;
-                      break;
-                    }
-                  }
+                      // Hit-test: Check if user tapped directly on a section text overlay box
+                      CueTag? tappedTag;
+                      for (var tag in cueTags) {
+                        double tagX =
+                            (tag.position.inMilliseconds /
+                                totalDuration.inMilliseconds) *
+                            constraints.maxWidth;
+                        // Provide a generous 20-pixel physical hit radius bounding box around the text start
+                        if (localX >= tagX - 10 && localX <= tagX + 60) {
+                          tappedTag = tag;
+                          break;
+                        }
+                      }
 
-                  if (tappedTag != null) {
-                    // Instantly snap to section coordinate
-                    onSeek(tappedTag.position);
-                  } else {
-                    // Conventional timeline scrub location
-                    Duration target = Duration(
-                      milliseconds: (totalDuration.inMilliseconds * percentage)
-                          .toInt(),
-                    );
-                    onSeek(target);
-                  }
-                },
-                onHorizontalDragUpdate: (details) {
-                  if (totalDuration.inMilliseconds == 0) return;
+                      if (tappedTag != null) {
+                        // Instantly snap to section coordinate
+                        onSeek(tappedTag.position);
+                      } else {
+                        // Conventional timeline scrub location
+                        Duration target = Duration(
+                          milliseconds:
+                              (totalDuration.inMilliseconds * percentage)
+                                  .toInt(),
+                        );
+                        onSeek(target);
+                      }
+                    },
+                    onHorizontalDragUpdate: (details) {
+                      if (totalDuration.inMilliseconds == 0) return;
 
-                  RenderBox box = context.findRenderObject() as RenderBox;
-                  double localX = details.localPosition.dx;
-                  double percentage = (localX / box.size.width).clamp(0.0, 1.0);
+                      double localX = details.localPosition.dx;
+                      double percentage = (localX / constraints.maxWidth).clamp(
+                        0.0,
+                        1.0,
+                      );
 
-                  Duration target = Duration(
-                    milliseconds: (totalDuration.inMilliseconds * percentage)
-                        .toInt(),
+                      Duration target = Duration(
+                        milliseconds:
+                            (totalDuration.inMilliseconds * percentage).toInt(),
+                      );
+                      onSeek(target);
+                    },
+                    child: CustomPaint(
+                      painter: _TimelinePainter(
+                        currentPosition: currentPosition,
+                        totalDuration: totalDuration,
+                        waveform: waveform,
+                        cueTags: cueTags,
+                      ),
+                    ),
                   );
-                  onSeek(target);
                 },
-                child: CustomPaint(
-                  painter: _TimelinePainter(
-                    currentPosition: currentPosition,
-                    totalDuration: totalDuration,
-                    waveform: waveform,
-                    cueTags: cueTags,
-                  ),
-                ),
               ),
             ),
           ),

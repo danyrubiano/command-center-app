@@ -18,7 +18,8 @@ void main() {
       expect(sequence.detectedKey, 'Auto');
       expect(sequence.pitchOverride, 0);
       expect(sequence.bpm, isNull);
-      expect(sequence.pauseAfterSeconds, 5);
+      expect(sequence.pauseAfterSeconds, 0);
+      expect(sequence.transitionAction, TransitionAction.stop);
       expect(sequence.cueTags, isEmpty);
       expect(sequence.tracks, isEmpty);
     });
@@ -64,6 +65,7 @@ void main() {
       expect(decoded.pitchOverride, 2);
       expect(decoded.bpm, 120.0);
       expect(decoded.pauseAfterSeconds, 10);
+      expect(decoded.transitionAction, TransitionAction.stop);
       expect(decoded.tracks.length, 1);
       expect(decoded.tracks.first.id, 't1');
     });
