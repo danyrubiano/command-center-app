@@ -12,15 +12,20 @@ class AudioEngineService {
 
   AudioEngineService._internal();
 
+  @visibleForTesting
+  SoLoud? mockSoLoud;
+
+  SoLoud get _soLoud => mockSoLoud ?? SoLoud.instance;
+
   bool _isInitialized = false;
   Sequence? _currentSequence;
-
   // Maps a track ID to a loaded SoLoud AudioSource
   final Map<String, AudioSource> _loadedSources = {};
 
   // Maps a track ID to currently playing SoundHandle
   final Map<String, SoundHandle> _playingHandles = {};
 
+  Duration? _pendingSeekPosition;
   bool _globalMuted = false;
   double _globalVolume = 1.0;
 
@@ -30,17 +35,17 @@ class AudioEngineService {
     if (_isInitialized) return;
 
     try {
-      await SoLoud.instance.init();
+      await _soLoud.init();
       _isInitialized = true;
 
       // Load saved output device
       final savedDeviceName = await SettingsService()
           .getAudioOutputDeviceName();
       if (savedDeviceName != null) {
-        final devices = SoLoud.instance.listPlaybackDevices();
+        final devices = _soLoud.listPlaybackDevices();
         for (var device in devices) {
           if (device.name == savedDeviceName) {
-            SoLoud.instance.changeDevice(newDevice: device);
+            _soLoud.changeDevice(newDevice: device);
             break;
           }
         }
@@ -65,7 +70,7 @@ class AudioEngineService {
     for (var track in sequence.tracks) {
       try {
         debugPrint('AudioEngineService: Loading file from ${track.filePath}');
-        final source = await SoLoud.instance.loadFile(track.filePath);
+        final source = await _soLoud.loadFile(track.filePath);
         _loadedSources[track.id] = source;
         debugPrint('AudioEngineService: Successfully loaded ${track.id}');
       } catch (e) {
@@ -89,7 +94,7 @@ class AudioEngineService {
 
     if (_playingHandles.isNotEmpty) {
       for (var handle in _playingHandles.values) {
-        SoLoud.instance.setPause(handle, false);
+        _soLoud.setPause(handle, false);
       }
       return;
     }
@@ -100,7 +105,7 @@ class AudioEngineService {
       if (_loadedSources.containsKey(track.id)) {
         final source = _loadedSources[track.id]!;
 
-        final handle = await SoLoud.instance.play(
+        final handle = await _soLoud.play(
           source,
           volume:
               0.0, // Start silenced, let _recalculateVolumes configure it based on solo/mute flags
@@ -111,6 +116,15 @@ class AudioEngineService {
       }
     }
 
+    if (_pendingSeekPosition != null) {
+      for (var handle in _playingHandles.values) {
+        try {
+          _soLoud.seek(handle, _pendingSeekPosition!);
+        } catch (_) {}
+      }
+      _pendingSeekPosition = null;
+    }
+
     // Assign proper mix states before unpausing.
     _recalculateVolumes();
 
@@ -119,28 +133,38 @@ class AudioEngineService {
     );
     // Now unpause all simultaneously for perfect sync
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.setPause(handle, false);
+      _soLoud.setPause(handle, false);
     }
   }
 
   /// Pauses playback
   void pause() {
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.setPause(handle, true);
+      _soLoud.setPause(handle, true);
     }
   }
 
   /// Seeks playback to a specific position
   void seek(Duration position) {
+    if (_playingHandles.isEmpty) {
+      _pendingSeekPosition = position;
+      return;
+    }
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.seek(handle, position);
+      try {
+        _soLoud.seek(handle, position);
+      } catch (_) {
+        // Exception expected if stem handle expired naturally before global loop border
+      }
     }
   }
 
   /// Stops playback entirely and resets playheads
   void stop() {
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.stop(handle);
+      try {
+        _soLoud.stop(handle);
+      } catch (_) {}
     }
     _playingHandles.clear();
   }
@@ -149,10 +173,11 @@ class AudioEngineService {
   Future<void> stopAndUnload() async {
     stop();
     for (var source in _loadedSources.values) {
-      SoLoud.instance.disposeSource(source);
+      _soLoud.disposeSource(source);
     }
     _loadedSources.clear();
     _currentSequence = null;
+    _pendingSeekPosition = null;
   }
 
   /// Private helper to recalculate all active volumes based on Mute and Solo states
@@ -171,7 +196,7 @@ class AudioEngineService {
         // If ANY track is soloed, and THIS track is NOT soloed, kill its volume
         if (anySolo && !track.solo) effectiveVolume = 0.0;
 
-        SoLoud.instance.setVolume(_playingHandles[track.id]!, effectiveVolume);
+        _soLoud.setVolume(_playingHandles[track.id]!, effectiveVolume);
       }
     }
   }
@@ -179,9 +204,13 @@ class AudioEngineService {
   /// Get current playback position from the first playing handle
   Duration get currentPosition {
     if (_playingHandles.isNotEmpty) {
-      return SoLoud.instance.getPosition(_playingHandles.values.first);
+      try {
+        return _soLoud.getPosition(_playingHandles.values.first);
+      } catch (e) {
+        return _pendingSeekPosition ?? Duration.zero;
+      }
     }
-    return Duration.zero;
+    return _pendingSeekPosition ?? Duration.zero;
   }
 
   /// Get total duration of the loaded sequence
@@ -189,7 +218,7 @@ class AudioEngineService {
     if (_loadedSources.isNotEmpty) {
       Duration maxDuration = Duration.zero;
       for (var source in _loadedSources.values) {
-        final length = SoLoud.instance.getLength(source);
+        final length = _soLoud.getLength(source);
         if (length > maxDuration) {
           maxDuration = length;
         }
@@ -203,7 +232,7 @@ class AudioEngineService {
   void setGlobalVolume(double linearVolume) {
     if (_isInitialized) {
       _globalVolume = linearVolume;
-      SoLoud.instance.setGlobalVolume(_globalMuted ? 0.0 : _globalVolume);
+      _soLoud.setGlobalVolume(_globalMuted ? 0.0 : _globalVolume);
     }
   }
 
@@ -211,7 +240,7 @@ class AudioEngineService {
   void setGlobalMute(bool isMuted) {
     if (_isInitialized) {
       _globalMuted = isMuted;
-      SoLoud.instance.setGlobalVolume(_globalMuted ? 0.0 : _globalVolume);
+      _soLoud.setGlobalVolume(_globalMuted ? 0.0 : _globalVolume);
     }
   }
 
@@ -227,7 +256,7 @@ class AudioEngineService {
   /// Real-time Pan Adjustment (-1.0 to 1.0)
   void setTrackPan(String trackId, double pan) {
     if (_playingHandles.containsKey(trackId)) {
-      SoLoud.instance.setPan(_playingHandles[trackId]!, pan);
+      _soLoud.setPan(_playingHandles[trackId]!, pan);
     }
     if (_currentSequence != null) {
       final track = _currentSequence!.tracks.firstWhere((t) => t.id == trackId);
