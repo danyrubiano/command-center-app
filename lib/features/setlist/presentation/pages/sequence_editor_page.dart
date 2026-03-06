@@ -36,11 +36,18 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
 
   late List<CueTag> _cueTags;
 
+  late TextEditingController _bpmController;
+  late TextEditingController _keyController;
+
   @override
   void initState() {
     super.initState();
     // Copy the existing tags so we can safely edit them in-memory
     _cueTags = List.from(widget.sequence.cueTags);
+    _bpmController = TextEditingController(
+      text: widget.sequence.bpm?.toString() ?? '',
+    );
+    _keyController = TextEditingController(text: widget.sequence.detectedKey);
     _initAudio();
     _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (mounted && _isPlaying) {
@@ -178,6 +185,8 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     HardwareKeyboard.instance.removeHandler(_keyHandler);
     _timer?.cancel();
     _audioEngine.stopAndUnload();
+    _bpmController.dispose();
+    _keyController.dispose();
     super.dispose();
   }
 
@@ -362,6 +371,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
       final detectedTags = await WaveformService.autoDetectCues(
         widget.sequence,
       );
+
       if (detectedTags.isNotEmpty) {
         if (mounted) {
           setState(() {
@@ -641,20 +651,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
-                                    controller:
-                                        TextEditingController(
-                                            text:
-                                                widget.sequence.bpm
-                                                    ?.toString() ??
-                                                '',
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset:
-                                                (widget.sequence.bpm
-                                                            ?.toString() ??
-                                                        '')
-                                                    .length,
-                                          ),
+                                    controller: _bpmController,
                                     onChanged: (val) {
                                       widget.sequence.bpm = double.tryParse(
                                         val,
@@ -669,16 +666,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                                       labelText: 'Key',
                                       isDense: true,
                                     ),
-                                    controller:
-                                        TextEditingController(
-                                            text: widget.sequence.detectedKey,
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset: widget
-                                                .sequence
-                                                .detectedKey
-                                                .length,
-                                          ),
+                                    controller: _keyController,
                                     onChanged: (val) {
                                       widget.sequence.detectedKey = val.isEmpty
                                           ? 'Auto'
@@ -1302,43 +1290,126 @@ class _EditableTrackStripState extends State<_EditableTrackStrip> {
                 ),
                 // Fader
                 Expanded(
-                  child: RotatedBox(
-                    quarterTurns: 3,
-                    child: Slider(
-                      min: -60.0,
-                      max: 12.0,
-                      value: _gain,
-                      onChanged: (v) {
-                        setState(() {
-                          // Snapping feature: if very close to 0, snap exactly to 0
-                          _gain = (v < 0.5 && v > -0.5) ? 0.0 : v;
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double padding = 24.0;
+                      final double trackHeight =
+                          constraints.maxHeight - (padding * 2);
 
-                          if (widget.trackId != null &&
-                              widget.audioEngine != null &&
-                              !widget.isMaster) {
-                            // Convert DB to Linear volume. Roughly:
-                            // SoLoud volume: 1.0 is default.
-                            // We construct simple exponential for dB: 10 ^ (dB / 20)
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (details) {
+                          setState(() {
+                            final double dbPerPixel = 72.0 / trackHeight;
+                            _gain -= details.delta.dy * dbPerPixel;
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
                             double linearVol = (math.pow(
                               10,
                               (_gain / 20),
                             )).toDouble();
-                            widget.audioEngine!.setTrackVolume(
-                              widget.trackId!,
-                              linearVol,
-                            );
-                          } else if (widget.isMaster &&
-                              widget.audioEngine != null) {
+                            if (_gain <= -59.5) linearVol = 0.0;
+
+                            if (widget.trackId != null &&
+                                widget.audioEngine != null &&
+                                !widget.isMaster) {
+                              widget.audioEngine!.setTrackVolume(
+                                widget.trackId!,
+                                linearVol,
+                              );
+                            } else if (widget.isMaster &&
+                                widget.audioEngine != null) {
+                              widget.audioEngine!.setGlobalVolume(linearVol);
+                            }
+                          });
+                        },
+                        onVerticalDragDown: (details) {
+                          setState(() {
+                            double posY = details.localPosition.dy - padding;
+                            posY = posY.clamp(0.0, trackHeight);
+                            final double percent = 1.0 - (posY / trackHeight);
+                            _gain = -60.0 + (percent * 72.0);
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
                             double linearVol = (math.pow(
                               10,
                               (_gain / 20),
                             )).toDouble();
-                            widget.audioEngine!.setGlobalVolume(linearVol);
-                          }
-                        });
-                      },
-                      activeColor: widget.color,
-                    ),
+                            if (_gain <= -59.5) linearVol = 0.0;
+
+                            if (widget.trackId != null &&
+                                widget.audioEngine != null &&
+                                !widget.isMaster) {
+                              widget.audioEngine!.setTrackVolume(
+                                widget.trackId!,
+                                linearVol,
+                              );
+                            } else if (widget.isMaster &&
+                                widget.audioEngine != null) {
+                              widget.audioEngine!.setGlobalVolume(linearVol);
+                            }
+                          });
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              top: padding,
+                              bottom: padding,
+                              child: Container(
+                                width: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top:
+                                  padding +
+                                  (trackHeight *
+                                      (1.0 - ((_gain + 60.0) / 72.0))) -
+                                  20,
+                              left: 4,
+                              right: 4,
+                              child: Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: widget.color.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    height: 4,
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
                 // Dynamic VU Meter Graph

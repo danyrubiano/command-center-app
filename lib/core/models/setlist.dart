@@ -4,8 +4,14 @@ class Setlist {
   final String id;
   String name;
   List<Sequence> sequences;
+  bool isUnsaved;
 
-  Setlist({required this.id, required this.name, this.sequences = const []});
+  Setlist({
+    required this.id,
+    required this.name,
+    this.sequences = const [],
+    this.isUnsaved = false,
+  });
 
   Map<String, dynamic> toJson() => {
     'id': id,

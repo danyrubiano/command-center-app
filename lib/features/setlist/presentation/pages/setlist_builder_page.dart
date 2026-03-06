@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:command_center_app/core/models/setlist.dart';
@@ -8,8 +11,13 @@ import 'package:command_center_app/features/setlist/presentation/pages/sequence_
 
 class SetlistBuilderPage extends StatefulWidget {
   final void Function(Setlist)? onSetlistActivated;
+  final void Function(Setlist)? onSetlistUpdated;
 
-  const SetlistBuilderPage({super.key, this.onSetlistActivated});
+  const SetlistBuilderPage({
+    super.key,
+    this.onSetlistActivated,
+    this.onSetlistUpdated,
+  });
 
   @override
   State<SetlistBuilderPage> createState() => _SetlistBuilderPageState();
@@ -33,17 +41,55 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     final setlists = await SetlistService.getSavedSetlists();
     final sequences = await FileExtractionService.loadSavedSequences();
 
+    // Ensure they are always sorted mathematically with newest lists at the very top.
+    setlists.sort((a, b) => b.id.compareTo(a.id));
+
     setState(() {
       _savedSetlists = setlists;
       _availableSequences = sequences;
+
+      // Auto-load exactly what the user was working on last, or default directly to the newest list explicitly.
+      if (_currentSetlist == null && _savedSetlists.isNotEmpty) {
+        _currentSetlist = Setlist.fromJson(_savedSetlists.first.toJson());
+      } else if (_currentSetlist != null &&
+          !_currentSetlist!.isUnsaved &&
+          _savedSetlists.isNotEmpty) {
+        final latestIndex = _savedSetlists.indexWhere(
+          (s) => s.id == _currentSetlist!.id,
+        );
+        if (latestIndex != -1) {
+          _currentSetlist = Setlist.fromJson(
+            _savedSetlists[latestIndex].toJson(),
+          );
+        } else {
+          _currentSetlist = Setlist.fromJson(_savedSetlists.first.toJson());
+        }
+      }
+
       _isLoading = false;
     });
   }
 
   void _createNewSetlist() {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // Generate unique name
+    final existingNames = _savedSetlists.map((s) => s.name).toSet();
+    String newName = 'New Setlist';
+    int counter = 1;
+    while (existingNames.contains(newName)) {
+      newName = 'New Setlist ($counter)';
+      counter++;
+    }
+
     setState(() {
-      _currentSetlist = Setlist(id: newId, name: 'New Setlist', sequences: []);
+      _currentSetlist = Setlist(
+        id: newId,
+        name: newName,
+        sequences: [],
+        isUnsaved: true,
+      );
+      _savedSetlists.insert(0, _currentSetlist!);
     });
   }
 
@@ -57,7 +103,13 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
   void _saveCurrentSetlist() async {
     if (_currentSetlist != null) {
+      _currentSetlist!.isUnsaved = false;
       await SetlistService.saveSetlist(_currentSetlist!);
+
+      if (widget.onSetlistUpdated != null) {
+        widget.onSetlistUpdated!(_currentSetlist!);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -67,8 +119,53 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     }
   }
 
+  void _exportSetlist() async {
+    if (_currentSetlist == null) return;
+
+    // Auto-save first ensuring exports are current
+    _saveCurrentSetlist();
+
+    try {
+      final String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Setlist Configuration',
+        fileName: '${_currentSetlist!.name.replaceAll(' ', '_')}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (outputFile != null) {
+        final jsonString = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(_currentSetlist!.toJson());
+        final file = File(outputFile);
+        await file.writeAsString(jsonString);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Setlist Exported successfully!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error exporting setlist: $e')));
+      }
+    }
+  }
+
   void _addSequenceToSetlist(Sequence seq) {
     if (_currentSetlist == null) return;
+
+    // Generate unique sequence name in the context of this setlist
+    final existingNames = _currentSetlist!.sequences.map((s) => s.name).toSet();
+    String newName = seq.name;
+    int counter = 1;
+    while (existingNames.contains(newName)) {
+      newName = '${seq.name} ($counter)';
+      counter++;
+    }
 
     // Create a copy of the sequence to allow independent tag/mix adjustments per setlist without altering the global library permanently
     final Sequence copy = Sequence.fromJson(seq.toJson());
@@ -77,13 +174,14 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
     final newSeq = Sequence(
       id: uniqueId,
-      name: copy.name,
+      name: newName,
       folderPath: copy.folderPath,
       tracks: copy.tracks,
       cueTags: copy.cueTags,
       detectedKey: copy.detectedKey,
       pauseAfterSeconds: copy.pauseAfterSeconds,
       pitchOverride: copy.pitchOverride,
+      bpm: copy.bpm,
     );
 
     setState(() {
@@ -112,9 +210,28 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (ctrl.text.trim().isNotEmpty) {
+                final newName = ctrl.text.trim();
+                if (newName.isNotEmpty && newName != _currentSetlist!.name) {
+                  final isDuplicate = _savedSetlists.any(
+                    (s) => s.id != _currentSetlist!.id && s.name == newName,
+                  );
+
+                  if (isDuplicate) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'A setlist with this name already exists.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   setState(() {
-                    _currentSetlist!.name = ctrl.text.trim();
+                    _currentSetlist!.name = newName;
+                    _currentSetlist!.isUnsaved =
+                        true; // Mark as unsaved on edit
                   });
                 }
                 Navigator.pop(ctx);
@@ -145,9 +262,27 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (ctrl.text.trim().isNotEmpty) {
+                final newName = ctrl.text.trim();
+                if (newName.isNotEmpty && newName != seq.name) {
+                  final isDuplicate = _currentSetlist!.sequences.any(
+                    (s) => s.id != seq.id && s.name == newName,
+                  );
+
+                  if (isDuplicate) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'A sequence with this name already exists in the setlist.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   setState(() {
-                    _currentSetlist!.sequences[index].name = ctrl.text.trim();
+                    _currentSetlist!.sequences[index].name = newName;
+                    _currentSetlist!.isUnsaved = true;
                   });
                 }
                 Navigator.pop(ctx);
@@ -215,8 +350,10 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                             context,
                           ).primaryColor.withValues(alpha: 0.2),
                           title: Text(
-                            sl.name,
+                            sl.name + (sl.isUnsaved ? ' (unsaved)' : ''),
                             style: TextStyle(
+                              fontStyle: sl.isUnsaved ? FontStyle.italic : null,
+                              color: sl.isUnsaved ? Colors.orangeAccent : null,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -360,20 +497,16 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   if (_currentSetlist!.sequences.isNotEmpty)
-                                    ElevatedButton.icon(
+                                    IconButton(
                                       icon: const Icon(
                                         Icons.play_circle_fill,
-                                        color: Colors.white,
+                                        color: Colors.greenAccent,
+                                        size: 36,
                                       ),
-                                      label: const Flexible(
-                                        child: Text(
-                                          'Load to Player',
-                                          style: TextStyle(color: Colors.white),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
+                                      tooltip: 'Play Setlist',
                                       onPressed: () {
                                         if (widget.onSetlistActivated != null) {
                                           widget.onSetlistActivated!(
@@ -381,27 +514,37 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                           );
                                         }
                                       },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                      ),
                                     ),
                                   ElevatedButton.icon(
                                     icon: const Icon(
                                       Icons.save,
                                       color: Colors.white,
                                     ),
-                                    label: const Flexible(
-                                      child: Text(
-                                        'Save Setlist',
-                                        style: TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    label: const Text(
+                                      'Save Setlist',
+                                      style: TextStyle(color: Colors.white),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     onPressed: _saveCurrentSetlist,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Theme.of(
                                         context,
                                       ).primaryColor,
+                                    ),
+                                  ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(
+                                      Icons.file_download,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'Export Config',
+                                      style: TextStyle(color: Colors.white),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    onPressed: _exportSetlist,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blueAccent,
                                     ),
                                   ),
                                 ],

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:command_center_app/core/models/track.dart';
+import 'package:command_center_app/core/services/file_extraction_service.dart';
 import 'package:just_waveform/just_waveform.dart';
 import 'package:path/path.dart' as p;
 
@@ -242,5 +243,117 @@ class WaveformService {
     }
 
     return detectedTags;
+  }
+
+  /// Automatically parses the Click track waveform, isolates metronome transients,
+  /// calculates the periodic distance between peaks, and reliably returns the BPM!
+  static Future<double?> autoDetectBpm(Sequence sequence) async {
+    Track? clickTrack;
+    for (var t in sequence.tracks) {
+      if (t.isClickOrCues) {
+        String lower = t.name.toLowerCase();
+        if (lower.contains('click') ||
+            lower.contains('clic') ||
+            lower.contains('clk')) {
+          clickTrack = t;
+          break;
+        }
+      }
+    }
+
+    if (clickTrack == null) return null;
+
+    final sequenceDir = p.dirname(clickTrack.filePath);
+    final waveFile = File(p.join(sequenceDir, '${clickTrack.name}.wave'));
+
+    if (!waveFile.existsSync()) {
+      final trackFile = File(clickTrack.filePath);
+      final completer = Completer<Waveform>();
+
+      final stream = JustWaveform.extract(
+        audioInFile: trackFile,
+        waveOutFile: waveFile,
+        zoom: const WaveformZoom.pixelsPerSecond(50),
+      );
+
+      stream.listen(
+        (progress) {
+          if (progress.waveform != null && !completer.isCompleted) {
+            completer.complete(progress.waveform);
+          }
+        },
+        onError: (e) {
+          if (!completer.isCompleted) completer.completeError(e);
+        },
+      );
+
+      await completer.future;
+    }
+
+    final waveform = await JustWaveform.parse(waveFile);
+    int pixelsPerSecond = (waveform.sampleRate / waveform.samplesPerPixel)
+        .round();
+    if (pixelsPerSecond <= 0) pixelsPerSecond = 50;
+
+    int threshold = 20000; // Clicks are extremely loud/sharp.
+    List<int> peakPixels = [];
+    int cooldown = 0;
+
+    for (int i = 0; i < waveform.length; i++) {
+      if (cooldown > 0) {
+        cooldown--;
+        continue;
+      }
+
+      int min = waveform.data[i * 2];
+      int max = waveform.data[i * 2 + 1];
+      int amplitude = (max - min).abs();
+
+      if (amplitude > threshold) {
+        peakPixels.add(i);
+        // Cooldown for ~1/4 of a second so we don't catch the same transient twice
+        cooldown = (pixelsPerSecond * 0.25).round();
+      }
+    }
+
+    if (peakPixels.length < 4) return null; // Not enough data to be confident
+
+    // Calculate distances between transients
+    List<double> intervals = [];
+    for (int i = 1; i < peakPixels.length; i++) {
+      double seconds = (peakPixels[i] - peakPixels[i - 1]) / pixelsPerSecond;
+      intervals.add(seconds);
+    }
+
+    // Find the median interval to ignore outliers (like a missing beat or double click)
+    intervals.sort();
+    double medianInterval = intervals[intervals.length ~/ 2];
+
+    if (medianInterval <= 0) return null;
+
+    // BPM is 60 divided by the interval
+    double detectedBpm = 60.0 / medianInterval;
+
+    // Round to nearest whole number or half if it's very close
+    detectedBpm = (detectedBpm * 2).round() / 2.0;
+
+    // Sanity check bounds (Wait, if click is half-time, we might get 60bpm, if double-time 240bpm)
+    if (detectedBpm < 40 || detectedBpm > 300) return null;
+
+    return detectedBpm;
+  }
+
+  /// Automatically parses a pitched track (e.g. Piano, Keys, Synth, Bass)
+  /// and runs a basic structural heuristic to guess the root key.
+  /// (Note: True polyphonic pitch detection requires an FFT transform,
+  /// but we can simulate a placeholder heuristic for now or rely on filenames).
+  static Future<String?> autoDetectPitch(Sequence sequence) async {
+    // 1. First, always trust the filename regex metadata parser above anything else!
+    final metadata = FileExtractionService.parseMetadata(sequence.name);
+    if (metadata.key != 'Auto') return metadata.key;
+
+    // 2. If it's truly unknown, we would normally spin up an FFmpeg/SoLoud FFT process
+    // For now, if we cannot parse it, returning null forces it to stay 'Auto' rather than guessing wrong.
+    return null; // Awaiting full FFT integration
   }
 }

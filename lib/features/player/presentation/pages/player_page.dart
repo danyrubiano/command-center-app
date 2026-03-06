@@ -16,8 +16,14 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 class PlayerPage extends StatefulWidget {
   final Setlist? setlist;
   final ValueChanged<Setlist>? onSetlistChanged;
+  final ValueChanged<bool>? onPlayStateChanged;
 
-  const PlayerPage({super.key, this.setlist, this.onSetlistChanged});
+  const PlayerPage({
+    super.key,
+    this.setlist,
+    this.onSetlistChanged,
+    this.onPlayStateChanged,
+  });
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -45,6 +51,9 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   Timer? _transitionTimer;
 
   bool _isLoopActive = false;
+  bool _isSeeking = false;
+  CueTag? _lockedLoopStart;
+  CueTag? _lockedLoopEnd;
 
   // Real-time VU logic
   double _masterVuPeak = 0.0;
@@ -69,19 +78,23 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (mounted && _isPlaying && !_isTransitioning) {
         setState(() {
-          _currentPosition = _audioEngine.currentPosition;
+          if (!_isSeeking) {
+            _currentPosition = _audioEngine.currentPosition;
 
-          if (_isLoopActive) {
-            _checkLooping();
-          } else {
-            _checkAutoTransition();
+            if (_isLoopActive) {
+              _checkLooping();
+            } else {
+              _checkAutoTransition();
+            }
           }
 
           _updateVuPeak();
         });
       } else if (mounted && !_isPlaying) {
         setState(() {
-          _currentPosition = _audioEngine.currentPosition;
+          if (!_isSeeking) {
+            _currentPosition = _audioEngine.currentPosition;
+          }
           _masterVuPeak = 0.0;
           _trackVuPeaks.clear();
         });
@@ -117,15 +130,23 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     } else {
       WakelockPlus.disable();
     }
+    widget.onPlayStateChanged?.call(_isPlaying);
   }
 
   void _toggleLoop() {
     setState(() {
       _isLoopActive = !_isLoopActive;
+      if (_isLoopActive) {
+        _lockCurrentLoopSection();
+      } else {
+        _lockedLoopStart = null;
+        _lockedLoopEnd = null;
+      }
     });
   }
 
-  void _checkLooping() {
+  void _lockCurrentLoopSection({Duration? overridePosition}) {
+    final pos = overridePosition ?? _currentPosition;
     if (_currentSequenceIndex < 0 ||
         _currentSequenceIndex >= _setlist.sequences.length) {
       return;
@@ -133,47 +154,81 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
     final currentSeq = _setlist.sequences[_currentSequenceIndex];
     if (currentSeq.cueTags.isEmpty) {
-      // Fallback: If no tags, loop the whole song
-      if (_totalDuration.inMilliseconds > 0 &&
-          _currentPosition.inMilliseconds >=
-              _totalDuration.inMilliseconds - 100) {
-        _audioEngine.seek(Duration.zero);
-      }
+      _lockedLoopStart = null;
+      _lockedLoopEnd = null;
       return;
     }
 
-    CueTag? currentTag;
-    CueTag? nextTag;
+    CueTag? start;
+    CueTag? end;
 
     for (int i = 0; i < currentSeq.cueTags.length; i++) {
-      if (_currentPosition.inMilliseconds >=
-          currentSeq.cueTags[i].position.inMilliseconds) {
-        currentTag = currentSeq.cueTags[i];
+      if (pos.inMilliseconds >= currentSeq.cueTags[i].position.inMilliseconds) {
+        start = currentSeq.cueTags[i];
         if (i + 1 < currentSeq.cueTags.length) {
-          nextTag = currentSeq.cueTags[i + 1];
+          end = currentSeq.cueTags[i + 1];
         } else {
-          nextTag = null;
+          end = null;
         }
       }
     }
 
-    if (currentTag != null && nextTag != null) {
+    _lockedLoopStart = start;
+    _lockedLoopEnd = end;
+  }
+
+  void _checkLooping() {
+    if (_currentSequenceIndex < 0 ||
+        _currentSequenceIndex >= _setlist.sequences.length ||
+        _isSeeking) {
+      return;
+    }
+
+    if (_lockedLoopEnd != null) {
       if (_currentPosition.inMilliseconds >=
-          nextTag.position.inMilliseconds - 100) {
-        _audioEngine.seek(currentTag.position);
+          _lockedLoopEnd!.position.inMilliseconds - 100) {
+        _autoLoopSeek(_lockedLoopStart?.position ?? Duration.zero);
       }
-    } else if (currentTag != null && nextTag == null) {
+    } else if (_lockedLoopStart != null) {
       if (_totalDuration.inMilliseconds > 0 &&
           _currentPosition.inMilliseconds >=
               _totalDuration.inMilliseconds - 100) {
-        _audioEngine.seek(currentTag.position);
+        _autoLoopSeek(_lockedLoopStart!.position);
       }
-    } else if (currentTag == null && currentSeq.cueTags.isNotEmpty) {
-      // We are before the first tag, loop back to the beginning if we hit the first tag
-      if (_currentPosition.inMilliseconds >=
-          currentSeq.cueTags.first.position.inMilliseconds - 100) {
-        _audioEngine.seek(Duration.zero);
+    } else {
+      // Fallback: If no tags, loop the whole song
+      if (_totalDuration.inMilliseconds > 0 &&
+          _currentPosition.inMilliseconds >=
+              _totalDuration.inMilliseconds - 100) {
+        _autoLoopSeek(Duration.zero);
       }
+    }
+  }
+
+  void _autoLoopSeek(Duration position) {
+    if (_isSeeking) return;
+    try {
+      _isSeeking = true;
+      _audioEngine.seek(position);
+    } finally {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _isSeeking = false);
+      });
+    }
+  }
+
+  void _manualSeek(Duration position) {
+    try {
+      _isSeeking = true;
+      _audioEngine.seek(position);
+
+      if (_isLoopActive) {
+        _lockCurrentLoopSection(overridePosition: position);
+      }
+    } finally {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) setState(() => _isSeeking = false);
+      });
     }
   }
 
@@ -283,6 +338,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   Future<void> _loadAvailableSetlists() async {
     final lists = await SetlistService.getSavedSetlists();
+    lists.sort((a, b) => b.id.compareTo(a.id));
     if (mounted) {
       setState(() => _availableSetlists = lists);
     }
@@ -575,12 +631,14 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                       ? Colors.blueAccent
                                       : Colors.grey,
                                   onTap: _toggleLoop,
+                                  tooltip: 'Toggle Loop',
                                 ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.skip_previous,
                                   Colors.grey,
                                   onTap: _skipPrevious,
+                                  tooltip: 'Previous Sequence',
                                 ),
                                 const SizedBox(width: 16),
                                 _isTransitioning
@@ -612,18 +670,21 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                         Colors.greenAccent,
                                         size: 64,
                                         onTap: _togglePlayPause,
+                                        tooltip: _isPlaying ? 'Pause' : 'Play',
                                       ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.stop,
                                   Colors.redAccent,
                                   onTap: _stopAndReset,
+                                  tooltip: 'Stop',
                                 ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.skip_next,
                                   Colors.grey,
                                   onTap: _skipNext,
+                                  tooltip: 'Next Sequence',
                                 ),
                               ],
                             ),
@@ -756,9 +817,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                           }
 
                                           if (tappedTag != null) {
-                                            _audioEngine.seek(
-                                              tappedTag.position,
-                                            );
+                                            _manualSeek(tappedTag.position);
                                             if (!_isPlaying) {
                                               _togglePlayPause();
                                             }
@@ -770,7 +829,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                                           percentage)
                                                       .toInt(),
                                             );
-                                            _audioEngine.seek(target);
+                                            _manualSeek(target);
                                           }
                                         },
                                         child: Container(
@@ -783,6 +842,9 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                               totalDuration: _totalDuration,
                                               waveform: _mergedWaveform,
                                               cueTags: currentSequence!.cueTags,
+                                              isLoopActive: _isLoopActive,
+                                              lockedLoopStart: _lockedLoopStart,
+                                              lockedLoopEnd: _lockedLoopEnd,
                                             ),
                                           ),
                                         ),
@@ -874,8 +936,9 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     Color color, {
     double size = 48,
     VoidCallback? onTap,
+    String? tooltip,
   }) {
-    return GestureDetector(
+    Widget button = GestureDetector(
       onTap: onTap,
       child: Container(
         width: size,
@@ -889,6 +952,11 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         ),
       ),
     );
+
+    if (tooltip != null) {
+      return Tooltip(message: tooltip, child: button);
+    }
+    return button;
   }
 }
 
@@ -1103,32 +1171,118 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                   },
                 ),
                 Expanded(
-                  child: RotatedBox(
-                    quarterTurns: 3,
-                    child: Slider(
-                      min: -60.0,
-                      max: 12.0,
-                      value: _gain,
-                      onChanged: (v) {
-                        setState(() {
-                          _gain = (v < 0.5 && v > -0.5) ? 0.0 : v;
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double padding = 24.0;
+                      final double trackHeight =
+                          constraints.maxHeight - (padding * 2);
 
-                          double linearVol = (math.pow(
-                            10,
-                            (_gain / 20),
-                          )).toDouble();
-                          if (widget.isMaster) {
-                            widget.engine.setGlobalVolume(linearVol);
-                          } else {
-                            widget.engine.setTrackVolume(
-                              widget.track.id,
-                              linearVol,
-                            );
-                          }
-                        });
-                      },
-                      activeColor: widget.color,
-                    ),
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (details) {
+                          setState(() {
+                            final double dbPerPixel = 72.0 / trackHeight;
+                            _gain -= details.delta.dy * dbPerPixel;
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
+                            double linearVol = (math.pow(
+                              10,
+                              (_gain / 20),
+                            )).toDouble();
+                            if (_gain <= -59.5) linearVol = 0.0;
+                            if (widget.isMaster) {
+                              widget.engine.setGlobalVolume(linearVol);
+                            } else {
+                              widget.engine.setTrackVolume(
+                                widget.track.id,
+                                linearVol,
+                              );
+                            }
+                          });
+                        },
+                        onVerticalDragDown: (details) {
+                          setState(() {
+                            double posY = details.localPosition.dy - padding;
+                            posY = posY.clamp(0.0, trackHeight);
+                            final double percent = 1.0 - (posY / trackHeight);
+                            _gain = -60.0 + (percent * 72.0);
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
+                            double linearVol = (math.pow(
+                              10,
+                              (_gain / 20),
+                            )).toDouble();
+                            if (_gain <= -59.5) linearVol = 0.0;
+                            if (widget.isMaster) {
+                              widget.engine.setGlobalVolume(linearVol);
+                            } else {
+                              widget.engine.setTrackVolume(
+                                widget.track.id,
+                                linearVol,
+                              );
+                            }
+                          });
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              top: padding,
+                              bottom: padding,
+                              child: Container(
+                                width: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top:
+                                  padding +
+                                  (trackHeight *
+                                      (1.0 - ((_gain + 60.0) / 72.0))) -
+                                  20,
+                              left: 4,
+                              right: 4,
+                              child: Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: widget.color.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    height: 4,
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Container(
@@ -1222,12 +1376,18 @@ class _LiveTimelinePainter extends CustomPainter {
   final Duration totalDuration;
   final Waveform? waveform;
   final List<CueTag> cueTags;
+  final bool isLoopActive;
+  final CueTag? lockedLoopStart;
+  final CueTag? lockedLoopEnd;
 
   _LiveTimelinePainter({
     required this.currentPosition,
     required this.totalDuration,
     required this.cueTags,
     this.waveform,
+    this.isLoopActive = false,
+    this.lockedLoopStart,
+    this.lockedLoopEnd,
   });
 
   @override
@@ -1322,6 +1482,30 @@ class _LiveTimelinePainter extends CustomPainter {
       textPainter.paint(canvas, Offset(tagX + 4, yPos));
     }
 
+    // Draw Active Loop Region
+    if (isLoopActive) {
+      double startX = 0;
+      double endX = size.width;
+
+      if (lockedLoopStart != null) {
+        startX =
+            (lockedLoopStart!.position.inMilliseconds /
+                totalDuration.inMilliseconds) *
+            size.width;
+      }
+      if (lockedLoopEnd != null) {
+        endX =
+            (lockedLoopEnd!.position.inMilliseconds /
+                totalDuration.inMilliseconds) *
+            size.width;
+      }
+
+      final Rect loopRect = Rect.fromLTRB(startX, 0, endX, size.height);
+      final Paint loopPaint = Paint()
+        ..color = Colors.blueAccent.withValues(alpha: 0.2);
+      canvas.drawRect(loopRect, loopPaint);
+    }
+
     // Draw Playhead Line
     final paintPlayhead = Paint()
       ..color = Colors.redAccent
@@ -1337,6 +1521,7 @@ class _LiveTimelinePainter extends CustomPainter {
   bool shouldRepaint(covariant _LiveTimelinePainter oldDelegate) {
     return oldDelegate.currentPosition != currentPosition ||
         oldDelegate.totalDuration != totalDuration ||
-        oldDelegate.cueTags.length != cueTags.length;
+        oldDelegate.cueTags.length != cueTags.length ||
+        oldDelegate.isLoopActive != isLoopActive;
   }
 }
