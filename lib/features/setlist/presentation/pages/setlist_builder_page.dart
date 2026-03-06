@@ -162,6 +162,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
       detectedKey: copy.detectedKey,
       pauseAfterSeconds: copy.pauseAfterSeconds,
       pitchOverride: copy.pitchOverride,
+      bpm: copy.bpm,
     );
 
     setState(() {
