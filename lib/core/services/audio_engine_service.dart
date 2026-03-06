@@ -148,8 +148,8 @@ class AudioEngineService {
     for (var handle in _playingHandles.values) {
       try {
         SoLoud.instance.seek(handle, position);
-      } catch (e) {
-        debugPrint('AudioEngineService: Failed to seek handle: $e');
+      } catch (_) {
+        // Exception expected if stem handle expired naturally before global loop border
       }
     }
   }
