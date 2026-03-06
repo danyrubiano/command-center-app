@@ -21,6 +21,7 @@ class _MainLayoutState extends State<MainLayout> with WindowListener {
   int _selectedIndex = 0;
   Setlist? _activeSetlist;
   bool _isFullScreen = false;
+  bool _isPlaying = false;
 
   bool get _isDesktop =>
       !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
@@ -84,6 +85,13 @@ class _MainLayoutState extends State<MainLayout> with WindowListener {
     PlayerPage(
       key: ValueKey(_activeSetlist?.id),
       setlist: _activeSetlist,
+      onPlayStateChanged: (isPlaying) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = isPlaying;
+          });
+        }
+      },
       onSetlistChanged: (sl) {
         SetlistService.saveLastPlayedSetlistId(sl.id);
         setState(() {
@@ -122,19 +130,23 @@ class _MainLayoutState extends State<MainLayout> with WindowListener {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        actions: _selectedIndex == 0
-            ? [
-                IconButton(
-                  icon: Icon(
-                    _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                  ),
-                  onPressed: _toggleFullScreen,
-                ),
-              ]
-            : null,
-      ),
+      appBar: (_selectedIndex == 0 && _isPlaying)
+          ? null
+          : AppBar(
+              title: Text(_titles[_selectedIndex]),
+              actions: _selectedIndex == 0
+                  ? [
+                      IconButton(
+                        icon: Icon(
+                          _isFullScreen
+                              ? Icons.fullscreen_exit
+                              : Icons.fullscreen,
+                        ),
+                        onPressed: _toggleFullScreen,
+                      ),
+                    ]
+                  : null,
+            ),
       drawer: Drawer(
         backgroundColor: Theme.of(context).canvasColor,
         child: ListView(

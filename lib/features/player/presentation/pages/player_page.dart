@@ -16,8 +16,14 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 class PlayerPage extends StatefulWidget {
   final Setlist? setlist;
   final ValueChanged<Setlist>? onSetlistChanged;
+  final ValueChanged<bool>? onPlayStateChanged;
 
-  const PlayerPage({super.key, this.setlist, this.onSetlistChanged});
+  const PlayerPage({
+    super.key,
+    this.setlist,
+    this.onSetlistChanged,
+    this.onPlayStateChanged,
+  });
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -124,6 +130,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     } else {
       WakelockPlus.disable();
     }
+    widget.onPlayStateChanged?.call(_isPlaying);
   }
 
   void _toggleLoop() {
@@ -1163,32 +1170,118 @@ class _LiveTrackStripState extends State<_LiveTrackStrip> {
                   },
                 ),
                 Expanded(
-                  child: RotatedBox(
-                    quarterTurns: 3,
-                    child: Slider(
-                      min: -60.0,
-                      max: 12.0,
-                      value: _gain,
-                      onChanged: (v) {
-                        setState(() {
-                          _gain = (v < 0.5 && v > -0.5) ? 0.0 : v;
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double padding = 24.0;
+                      final double trackHeight =
+                          constraints.maxHeight - (padding * 2);
 
-                          double linearVol = (math.pow(
-                            10,
-                            (_gain / 20),
-                          )).toDouble();
-                          if (widget.isMaster) {
-                            widget.engine.setGlobalVolume(linearVol);
-                          } else {
-                            widget.engine.setTrackVolume(
-                              widget.track.id,
-                              linearVol,
-                            );
-                          }
-                        });
-                      },
-                      activeColor: widget.color,
-                    ),
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (details) {
+                          setState(() {
+                            final double dbPerPixel = 72.0 / trackHeight;
+                            _gain -= details.delta.dy * dbPerPixel;
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
+                            double linearVol = (math.pow(
+                              10,
+                              (_gain / 20),
+                            )).toDouble();
+                            if (_gain <= -59.5) linearVol = 0.0;
+                            if (widget.isMaster) {
+                              widget.engine.setGlobalVolume(linearVol);
+                            } else {
+                              widget.engine.setTrackVolume(
+                                widget.track.id,
+                                linearVol,
+                              );
+                            }
+                          });
+                        },
+                        onVerticalDragDown: (details) {
+                          setState(() {
+                            double posY = details.localPosition.dy - padding;
+                            posY = posY.clamp(0.0, trackHeight);
+                            final double percent = 1.0 - (posY / trackHeight);
+                            _gain = -60.0 + (percent * 72.0);
+                            _gain = _gain.clamp(-60.0, 12.0);
+
+                            if (_gain < 0.5 && _gain > -0.5) _gain = 0.0;
+
+                            double linearVol = (math.pow(
+                              10,
+                              (_gain / 20),
+                            )).toDouble();
+                            if (_gain <= -59.5) linearVol = 0.0;
+                            if (widget.isMaster) {
+                              widget.engine.setGlobalVolume(linearVol);
+                            } else {
+                              widget.engine.setTrackVolume(
+                                widget.track.id,
+                                linearVol,
+                              );
+                            }
+                          });
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              top: padding,
+                              bottom: padding,
+                              child: Container(
+                                width: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top:
+                                  padding +
+                                  (trackHeight *
+                                      (1.0 - ((_gain + 60.0) / 72.0))) -
+                                  20,
+                              left: 4,
+                              right: 4,
+                              child: Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: widget.color.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    height: 4,
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Container(
