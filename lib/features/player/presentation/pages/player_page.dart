@@ -46,6 +46,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   bool _isLoopActive = false;
   bool _isSeeking = false;
+  CueTag? _lockedLoopStart;
+  CueTag? _lockedLoopEnd;
 
   // Real-time VU logic
   double _masterVuPeak = 0.0;
@@ -123,7 +125,45 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   void _toggleLoop() {
     setState(() {
       _isLoopActive = !_isLoopActive;
+      if (_isLoopActive) {
+        _lockCurrentLoopSection();
+      } else {
+        _lockedLoopStart = null;
+        _lockedLoopEnd = null;
+      }
     });
+  }
+
+  void _lockCurrentLoopSection({Duration? overridePosition}) {
+    final pos = overridePosition ?? _currentPosition;
+    if (_currentSequenceIndex < 0 ||
+        _currentSequenceIndex >= _setlist.sequences.length) {
+      return;
+    }
+
+    final currentSeq = _setlist.sequences[_currentSequenceIndex];
+    if (currentSeq.cueTags.isEmpty) {
+      _lockedLoopStart = null;
+      _lockedLoopEnd = null;
+      return;
+    }
+
+    CueTag? start;
+    CueTag? end;
+
+    for (int i = 0; i < currentSeq.cueTags.length; i++) {
+      if (pos.inMilliseconds >= currentSeq.cueTags[i].position.inMilliseconds) {
+        start = currentSeq.cueTags[i];
+        if (i + 1 < currentSeq.cueTags.length) {
+          end = currentSeq.cueTags[i + 1];
+        } else {
+          end = null;
+        }
+      }
+    }
+
+    _lockedLoopStart = start;
+    _lockedLoopEnd = end;
   }
 
   void _checkLooping() {
@@ -133,57 +173,45 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
       return;
     }
 
-    final currentSeq = _setlist.sequences[_currentSequenceIndex];
-    if (currentSeq.cueTags.isEmpty) {
+    if (_lockedLoopEnd != null) {
+      if (_currentPosition.inMilliseconds >=
+          _lockedLoopEnd!.position.inMilliseconds - 100) {
+        _autoLoopSeek(_lockedLoopStart?.position ?? Duration.zero);
+      }
+    } else if (_lockedLoopStart != null) {
+      if (_totalDuration.inMilliseconds > 0 &&
+          _currentPosition.inMilliseconds >=
+              _totalDuration.inMilliseconds - 100) {
+        _autoLoopSeek(_lockedLoopStart!.position);
+      }
+    } else {
       // Fallback: If no tags, loop the whole song
       if (_totalDuration.inMilliseconds > 0 &&
           _currentPosition.inMilliseconds >=
               _totalDuration.inMilliseconds - 100) {
-        _triggerSeek(Duration.zero);
-      }
-      return;
-    }
-
-    CueTag? currentTag;
-    CueTag? nextTag;
-
-    for (int i = 0; i < currentSeq.cueTags.length; i++) {
-      if (_currentPosition.inMilliseconds >=
-          currentSeq.cueTags[i].position.inMilliseconds) {
-        currentTag = currentSeq.cueTags[i];
-        if (i + 1 < currentSeq.cueTags.length) {
-          nextTag = currentSeq.cueTags[i + 1];
-        } else {
-          nextTag = null;
-        }
-      }
-    }
-
-    if (currentTag != null && nextTag != null) {
-      if (_currentPosition.inMilliseconds >=
-          nextTag.position.inMilliseconds - 100) {
-        _triggerSeek(currentTag.position);
-      }
-    } else if (currentTag != null && nextTag == null) {
-      if (_totalDuration.inMilliseconds > 0 &&
-          _currentPosition.inMilliseconds >=
-              _totalDuration.inMilliseconds - 100) {
-        _triggerSeek(currentTag.position);
-      }
-    } else if (currentTag == null && currentSeq.cueTags.isNotEmpty) {
-      // We are before the first tag, loop back to the beginning if we hit the first tag
-      if (_currentPosition.inMilliseconds >=
-          currentSeq.cueTags.first.position.inMilliseconds - 100) {
-        _triggerSeek(Duration.zero);
+        _autoLoopSeek(Duration.zero);
       }
     }
   }
 
-  void _triggerSeek(Duration position) {
+  void _autoLoopSeek(Duration position) {
     if (_isSeeking) return;
     _isSeeking = true;
     _audioEngine.seek(position);
     Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _isSeeking = false);
+    });
+  }
+
+  void _manualSeek(Duration position) {
+    _isSeeking = true;
+    _audioEngine.seek(position);
+
+    if (_isLoopActive) {
+      _lockCurrentLoopSection(overridePosition: position);
+    }
+
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) setState(() => _isSeeking = false);
     });
   }
@@ -767,7 +795,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                           }
 
                                           if (tappedTag != null) {
-                                            _triggerSeek(tappedTag.position);
+                                            _manualSeek(tappedTag.position);
                                             if (!_isPlaying) {
                                               _togglePlayPause();
                                             }
@@ -779,7 +807,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                                           percentage)
                                                       .toInt(),
                                             );
-                                            _triggerSeek(target);
+                                            _manualSeek(target);
                                           }
                                         },
                                         child: Container(
@@ -793,6 +821,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                               waveform: _mergedWaveform,
                                               cueTags: currentSequence!.cueTags,
                                               isLoopActive: _isLoopActive,
+                                              lockedLoopStart: _lockedLoopStart,
+                                              lockedLoopEnd: _lockedLoopEnd,
                                             ),
                                           ),
                                         ),
@@ -1233,6 +1263,8 @@ class _LiveTimelinePainter extends CustomPainter {
   final Waveform? waveform;
   final List<CueTag> cueTags;
   final bool isLoopActive;
+  final CueTag? lockedLoopStart;
+  final CueTag? lockedLoopEnd;
 
   _LiveTimelinePainter({
     required this.currentPosition,
@@ -1240,6 +1272,8 @@ class _LiveTimelinePainter extends CustomPainter {
     required this.cueTags,
     this.waveform,
     this.isLoopActive = false,
+    this.lockedLoopStart,
+    this.lockedLoopEnd,
   });
 
   @override
@@ -1339,29 +1373,16 @@ class _LiveTimelinePainter extends CustomPainter {
       double startX = 0;
       double endX = size.width;
 
-      CueTag? activeTag;
-      CueTag? nextTag;
-
-      for (int i = 0; i < cueTags.length; i++) {
-        if (currentPosition.inMilliseconds >=
-            cueTags[i].position.inMilliseconds) {
-          activeTag = cueTags[i];
-          if (i + 1 < cueTags.length) {
-            nextTag = cueTags[i + 1];
-          } else {
-            nextTag = null;
-          }
-        }
-      }
-
-      if (activeTag != null) {
+      if (lockedLoopStart != null) {
         startX =
-            (activeTag.position.inMilliseconds / totalDuration.inMilliseconds) *
+            (lockedLoopStart!.position.inMilliseconds /
+                totalDuration.inMilliseconds) *
             size.width;
       }
-      if (nextTag != null) {
+      if (lockedLoopEnd != null) {
         endX =
-            (nextTag.position.inMilliseconds / totalDuration.inMilliseconds) *
+            (lockedLoopEnd!.position.inMilliseconds /
+                totalDuration.inMilliseconds) *
             size.width;
       }
 
