@@ -72,10 +72,20 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
   void _createNewSetlist() {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // Generate unique name
+    final existingNames = _savedSetlists.map((s) => s.name).toSet();
+    String newName = 'New Setlist';
+    int counter = 1;
+    while (existingNames.contains(newName)) {
+      newName = 'New Setlist ($counter)';
+      counter++;
+    }
+
     setState(() {
       _currentSetlist = Setlist(
         id: newId,
-        name: 'New Setlist',
+        name: newName,
         sequences: [],
         isUnsaved: true,
       );
@@ -148,6 +158,15 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   void _addSequenceToSetlist(Sequence seq) {
     if (_currentSetlist == null) return;
 
+    // Generate unique sequence name in the context of this setlist
+    final existingNames = _currentSetlist!.sequences.map((s) => s.name).toSet();
+    String newName = seq.name;
+    int counter = 1;
+    while (existingNames.contains(newName)) {
+      newName = '${seq.name} ($counter)';
+      counter++;
+    }
+
     // Create a copy of the sequence to allow independent tag/mix adjustments per setlist without altering the global library permanently
     final Sequence copy = Sequence.fromJson(seq.toJson());
     // Give it a unique ID for the reorderable list
@@ -155,7 +174,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
     final newSeq = Sequence(
       id: uniqueId,
-      name: copy.name,
+      name: newName,
       folderPath: copy.folderPath,
       tracks: copy.tracks,
       cueTags: copy.cueTags,
@@ -191,9 +210,28 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (ctrl.text.trim().isNotEmpty) {
+                final newName = ctrl.text.trim();
+                if (newName.isNotEmpty && newName != _currentSetlist!.name) {
+                  final isDuplicate = _savedSetlists.any(
+                    (s) => s.id != _currentSetlist!.id && s.name == newName,
+                  );
+
+                  if (isDuplicate) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'A setlist with this name already exists.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   setState(() {
-                    _currentSetlist!.name = ctrl.text.trim();
+                    _currentSetlist!.name = newName;
+                    _currentSetlist!.isUnsaved =
+                        true; // Mark as unsaved on edit
                   });
                 }
                 Navigator.pop(ctx);
@@ -224,9 +262,27 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (ctrl.text.trim().isNotEmpty) {
+                final newName = ctrl.text.trim();
+                if (newName.isNotEmpty && newName != seq.name) {
+                  final isDuplicate = _currentSetlist!.sequences.any(
+                    (s) => s.id != seq.id && s.name == newName,
+                  );
+
+                  if (isDuplicate) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'A sequence with this name already exists in the setlist.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   setState(() {
-                    _currentSetlist!.sequences[index].name = ctrl.text.trim();
+                    _currentSetlist!.sequences[index].name = newName;
+                    _currentSetlist!.isUnsaved = true;
                   });
                 }
                 Navigator.pop(ctx);
