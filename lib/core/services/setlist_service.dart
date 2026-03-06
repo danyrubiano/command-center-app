@@ -127,6 +127,9 @@ class SetlistService {
       final file = File(
         p.join(docsDir.path, 'CommandCenter', 'last_played_setlist.txt'),
       );
+      if (!await file.parent.exists()) {
+        await file.parent.create(recursive: true);
+      }
       await file.writeAsString(id);
     } catch (e) {
       debugPrint('Failed to save last played setlist id: $e');
