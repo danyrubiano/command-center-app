@@ -113,7 +113,9 @@ class AudioEngineService {
 
     if (_pendingSeekPosition != null) {
       for (var handle in _playingHandles.values) {
-        SoLoud.instance.seek(handle, _pendingSeekPosition!);
+        try {
+          SoLoud.instance.seek(handle, _pendingSeekPosition!);
+        } catch (_) {}
       }
       _pendingSeekPosition = null;
     }
@@ -144,14 +146,20 @@ class AudioEngineService {
       return;
     }
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.seek(handle, position);
+      try {
+        SoLoud.instance.seek(handle, position);
+      } catch (e) {
+        debugPrint('AudioEngineService: Failed to seek handle: $e');
+      }
     }
   }
 
   /// Stops playback entirely and resets playheads
   void stop() {
     for (var handle in _playingHandles.values) {
-      SoLoud.instance.stop(handle);
+      try {
+        SoLoud.instance.stop(handle);
+      } catch (_) {}
     }
     _playingHandles.clear();
   }
@@ -191,7 +199,11 @@ class AudioEngineService {
   /// Get current playback position from the first playing handle
   Duration get currentPosition {
     if (_playingHandles.isNotEmpty) {
-      return SoLoud.instance.getPosition(_playingHandles.values.first);
+      try {
+        return SoLoud.instance.getPosition(_playingHandles.values.first);
+      } catch (e) {
+        return _pendingSeekPosition ?? Duration.zero;
+      }
     }
     return _pendingSeekPosition ?? Duration.zero;
   }

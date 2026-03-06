@@ -200,24 +200,29 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   void _autoLoopSeek(Duration position) {
     if (_isSeeking) return;
-    _isSeeking = true;
-    _audioEngine.seek(position);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _isSeeking = false);
-    });
+    try {
+      _isSeeking = true;
+      _audioEngine.seek(position);
+    } finally {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _isSeeking = false);
+      });
+    }
   }
 
   void _manualSeek(Duration position) {
-    _isSeeking = true;
-    _audioEngine.seek(position);
+    try {
+      _isSeeking = true;
+      _audioEngine.seek(position);
 
-    if (_isLoopActive) {
-      _lockCurrentLoopSection(overridePosition: position);
+      if (_isLoopActive) {
+        _lockCurrentLoopSection(overridePosition: position);
+      }
+    } finally {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) setState(() => _isSeeking = false);
+      });
     }
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) setState(() => _isSeeking = false);
-    });
   }
 
   void _checkAutoTransition() {
