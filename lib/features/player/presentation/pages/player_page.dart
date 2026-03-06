@@ -72,19 +72,23 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (mounted && _isPlaying && !_isTransitioning) {
         setState(() {
-          _currentPosition = _audioEngine.currentPosition;
+          if (!_isSeeking) {
+            _currentPosition = _audioEngine.currentPosition;
 
-          if (_isLoopActive) {
-            _checkLooping();
-          } else {
-            _checkAutoTransition();
+            if (_isLoopActive) {
+              _checkLooping();
+            } else {
+              _checkAutoTransition();
+            }
           }
 
           _updateVuPeak();
         });
       } else if (mounted && !_isPlaying) {
         setState(() {
-          _currentPosition = _audioEngine.currentPosition;
+          if (!_isSeeking) {
+            _currentPosition = _audioEngine.currentPosition;
+          }
           _masterVuPeak = 0.0;
           _trackVuPeaks.clear();
         });

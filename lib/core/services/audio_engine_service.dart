@@ -14,13 +14,13 @@ class AudioEngineService {
 
   bool _isInitialized = false;
   Sequence? _currentSequence;
-
   // Maps a track ID to a loaded SoLoud AudioSource
   final Map<String, AudioSource> _loadedSources = {};
 
   // Maps a track ID to currently playing SoundHandle
   final Map<String, SoundHandle> _playingHandles = {};
 
+  Duration? _pendingSeekPosition;
   bool _globalMuted = false;
   double _globalVolume = 1.0;
 
@@ -111,6 +111,13 @@ class AudioEngineService {
       }
     }
 
+    if (_pendingSeekPosition != null) {
+      for (var handle in _playingHandles.values) {
+        SoLoud.instance.seek(handle, _pendingSeekPosition!);
+      }
+      _pendingSeekPosition = null;
+    }
+
     // Assign proper mix states before unpausing.
     _recalculateVolumes();
 
@@ -132,6 +139,10 @@ class AudioEngineService {
 
   /// Seeks playback to a specific position
   void seek(Duration position) {
+    if (_playingHandles.isEmpty) {
+      _pendingSeekPosition = position;
+      return;
+    }
     for (var handle in _playingHandles.values) {
       SoLoud.instance.seek(handle, position);
     }
@@ -153,6 +164,7 @@ class AudioEngineService {
     }
     _loadedSources.clear();
     _currentSequence = null;
+    _pendingSeekPosition = null;
   }
 
   /// Private helper to recalculate all active volumes based on Mute and Solo states
@@ -181,7 +193,7 @@ class AudioEngineService {
     if (_playingHandles.isNotEmpty) {
       return SoLoud.instance.getPosition(_playingHandles.values.first);
     }
-    return Duration.zero;
+    return _pendingSeekPosition ?? Duration.zero;
   }
 
   /// Get total duration of the loaded sequence
