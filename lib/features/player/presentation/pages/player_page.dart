@@ -44,6 +44,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   int _transitionCountdown = 0;
   Timer? _transitionTimer;
 
+  bool _isLoopActive = false;
+
   // Real-time VU logic
   double _masterVuPeak = 0.0;
   final Map<String, double> _trackVuPeaks = {};
@@ -68,7 +70,13 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
       if (mounted && _isPlaying && !_isTransitioning) {
         setState(() {
           _currentPosition = _audioEngine.currentPosition;
-          _checkAutoTransition();
+
+          if (_isLoopActive) {
+            _checkLooping();
+          } else {
+            _checkAutoTransition();
+          }
+
           _updateVuPeak();
         });
       } else if (mounted && !_isPlaying) {
@@ -108,6 +116,64 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
       WakelockPlus.enable();
     } else {
       WakelockPlus.disable();
+    }
+  }
+
+  void _toggleLoop() {
+    setState(() {
+      _isLoopActive = !_isLoopActive;
+    });
+  }
+
+  void _checkLooping() {
+    if (_currentSequenceIndex < 0 ||
+        _currentSequenceIndex >= _setlist.sequences.length) {
+      return;
+    }
+
+    final currentSeq = _setlist.sequences[_currentSequenceIndex];
+    if (currentSeq.cueTags.isEmpty) {
+      // Fallback: If no tags, loop the whole song
+      if (_totalDuration.inMilliseconds > 0 &&
+          _currentPosition.inMilliseconds >=
+              _totalDuration.inMilliseconds - 100) {
+        _audioEngine.seek(Duration.zero);
+      }
+      return;
+    }
+
+    CueTag? currentTag;
+    CueTag? nextTag;
+
+    for (int i = 0; i < currentSeq.cueTags.length; i++) {
+      if (_currentPosition.inMilliseconds >=
+          currentSeq.cueTags[i].position.inMilliseconds) {
+        currentTag = currentSeq.cueTags[i];
+        if (i + 1 < currentSeq.cueTags.length) {
+          nextTag = currentSeq.cueTags[i + 1];
+        } else {
+          nextTag = null;
+        }
+      }
+    }
+
+    if (currentTag != null && nextTag != null) {
+      if (_currentPosition.inMilliseconds >=
+          nextTag.position.inMilliseconds - 100) {
+        _audioEngine.seek(currentTag.position);
+      }
+    } else if (currentTag != null && nextTag == null) {
+      if (_totalDuration.inMilliseconds > 0 &&
+          _currentPosition.inMilliseconds >=
+              _totalDuration.inMilliseconds - 100) {
+        _audioEngine.seek(currentTag.position);
+      }
+    } else if (currentTag == null && currentSeq.cueTags.isNotEmpty) {
+      // We are before the first tag, loop back to the beginning if we hit the first tag
+      if (_currentPosition.inMilliseconds >=
+          currentSeq.cueTags.first.position.inMilliseconds - 100) {
+        _audioEngine.seek(Duration.zero);
+      }
     }
   }
 
@@ -503,6 +569,14 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
+                                _circularButton(
+                                  Icons.loop,
+                                  _isLoopActive
+                                      ? Colors.blueAccent
+                                      : Colors.grey,
+                                  onTap: _toggleLoop,
+                                ),
+                                const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.skip_previous,
                                   Colors.grey,
