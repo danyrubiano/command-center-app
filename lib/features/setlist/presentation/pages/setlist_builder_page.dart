@@ -497,6 +497,7 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   if (_currentSetlist!.sequences.isNotEmpty)
                                     IconButton(
