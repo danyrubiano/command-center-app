@@ -352,44 +352,50 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     );
   }
 
-  Future<void> _autoDetectCues() async {
+  Future<void> _autoDetectAll() async {
     setState(() {
       _isExtractingWaveform = true;
-      _waveformMessage = 'Auto-detecting sections from Cues track...';
+      _waveformMessage = 'Auto-detecting sections, BPM, and Pitch...';
     });
 
     try {
       final detectedTags = await WaveformService.autoDetectCues(
         widget.sequence,
       );
-      if (detectedTags.isNotEmpty) {
-        if (mounted) {
-          setState(() {
+
+      final detectedBpm = await WaveformService.autoDetectBpm(widget.sequence);
+
+      final detectedPitch = await WaveformService.autoDetectPitch(
+        widget.sequence,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (detectedTags.isNotEmpty) {
             _cueTags.addAll(detectedTags);
             _cueTags.sort((a, b) => a.position.compareTo(b.position));
             widget.sequence.cueTags = _cueTags;
+          }
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Successfully auto-detected ${detectedTags.length} sections!',
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          });
-        }
-      } else {
-        if (mounted) {
+          if (detectedBpm != null) {
+            widget.sequence.bpm = detectedBpm;
+          }
+
+          if (detectedPitch != null) {
+            widget.sequence.detectedKey = detectedPitch;
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'No spoken cues could be clearly detected, or track was missing.',
+                'Auto-Detection Complete!\n'
+                '${detectedTags.length} Sections Found.\n'
+                'BPM: ${detectedBpm ?? 'N/A'}, Key: ${detectedPitch ?? 'N/A'}',
               ),
-              backgroundColor: Colors.orange,
+              backgroundColor: Colors.green,
             ),
           );
-        }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -484,7 +490,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                       totalDuration: _totalDuration,
                       waveform: _mergedWaveform,
                       cueTags: _cueTags,
-                      onAutoDetect: _autoDetectCues,
+                      onAutoDetect: _autoDetectAll,
                       onSeek: (position) {
                         _audioEngine.seek(position);
                         if (!_isPlaying) {
