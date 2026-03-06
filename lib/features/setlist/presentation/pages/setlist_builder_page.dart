@@ -41,9 +41,31 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
     final setlists = await SetlistService.getSavedSetlists();
     final sequences = await FileExtractionService.loadSavedSequences();
 
+    // Ensure they are always sorted mathematically with newest lists at the very top.
+    setlists.sort((a, b) => b.id.compareTo(a.id));
+
     setState(() {
       _savedSetlists = setlists;
       _availableSequences = sequences;
+
+      // Auto-load exactly what the user was working on last, or default directly to the newest list explicitly.
+      if (_currentSetlist == null && _savedSetlists.isNotEmpty) {
+        _currentSetlist = Setlist.fromJson(_savedSetlists.first.toJson());
+      } else if (_currentSetlist != null &&
+          !_currentSetlist!.isUnsaved &&
+          _savedSetlists.isNotEmpty) {
+        final latestIndex = _savedSetlists.indexWhere(
+          (s) => s.id == _currentSetlist!.id,
+        );
+        if (latestIndex != -1) {
+          _currentSetlist = Setlist.fromJson(
+            _savedSetlists[latestIndex].toJson(),
+          );
+        } else {
+          _currentSetlist = Setlist.fromJson(_savedSetlists.first.toJson());
+        }
+      }
+
       _isLoading = false;
     });
   }
