@@ -361,10 +361,10 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     );
   }
 
-  Future<void> _autoDetectAll() async {
+  Future<void> _autoDetectCues() async {
     setState(() {
       _isExtractingWaveform = true;
-      _waveformMessage = 'Auto-detecting sections, BPM, and Pitch...';
+      _waveformMessage = 'Auto-detecting sections from Cues track...';
     });
 
     try {
@@ -372,41 +372,34 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
         widget.sequence,
       );
 
-      final detectedBpm = await WaveformService.autoDetectBpm(widget.sequence);
-
-      final detectedPitch = await WaveformService.autoDetectPitch(
-        widget.sequence,
-      );
-
-      if (mounted) {
-        setState(() {
-          if (detectedTags.isNotEmpty) {
+      if (detectedTags.isNotEmpty) {
+        if (mounted) {
+          setState(() {
             _cueTags.addAll(detectedTags);
             _cueTags.sort((a, b) => a.position.compareTo(b.position));
             widget.sequence.cueTags = _cueTags;
-          }
 
-          if (detectedBpm != null) {
-            widget.sequence.bpm = detectedBpm;
-            _bpmController.text = detectedBpm.toString();
-          }
-
-          if (detectedPitch != null) {
-            widget.sequence.detectedKey = detectedPitch;
-            _keyController.text = detectedPitch;
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Auto-Detection Complete!\n'
-                '${detectedTags.length} Sections Found.\n'
-                'BPM: ${detectedBpm ?? 'N/A'}, Key: ${detectedPitch ?? 'N/A'}',
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Successfully auto-detected ${detectedTags.length} sections!',
+                ),
+                backgroundColor: Colors.green,
               ),
-              backgroundColor: Colors.green,
+            );
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No spoken cues could be clearly detected, or track was missing.',
+              ),
+              backgroundColor: Colors.orange,
             ),
           );
-        });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -501,7 +494,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                       totalDuration: _totalDuration,
                       waveform: _mergedWaveform,
                       cueTags: _cueTags,
-                      onAutoDetect: _autoDetectAll,
+                      onAutoDetect: _autoDetectCues,
                       onSeek: (position) {
                         _audioEngine.seek(position);
                         if (!_isPlaying) {

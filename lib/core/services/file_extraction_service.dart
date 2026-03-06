@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../models/sequence.dart';
 import '../models/track.dart';
 import 'package:command_center_app/core/services/settings_service.dart';
+import 'package:command_center_app/core/services/waveform_service.dart';
 import 'package:flutter/foundation.dart';
 
 class ParsedMetadata {
@@ -338,7 +339,7 @@ class FileExtractionService {
       // 4. Return new Sequence entity
       final metadata = parseMetadata(sequenceName);
 
-      return Sequence(
+      final newSeq = Sequence(
         id: sequenceName.toLowerCase().replaceAll(' ', '_'),
         name: metadata.cleanName,
         folderPath: targetDirPath,
@@ -346,6 +347,26 @@ class FileExtractionService {
         detectedKey: metadata.key,
         tracks: extractedTracks,
       );
+
+      try {
+        if (newSeq.bpm == null) {
+          final detectedBpm = await WaveformService.autoDetectBpm(newSeq);
+          if (detectedBpm != null) {
+            newSeq.bpm = detectedBpm;
+          }
+        }
+
+        if (newSeq.detectedKey == 'Auto') {
+          final detectedPitch = await WaveformService.autoDetectPitch(newSeq);
+          if (detectedPitch != null) {
+            newSeq.detectedKey = detectedPitch;
+          }
+        }
+      } catch (e) {
+        debugPrint('Auto detect failed quietly during extraction: $e');
+      }
+
+      return newSeq;
     } catch (e) {
       if (await targetDir.exists()) {
         await targetDir.delete(recursive: true);

@@ -266,7 +266,29 @@ class WaveformService {
     final sequenceDir = p.dirname(clickTrack.filePath);
     final waveFile = File(p.join(sequenceDir, '${clickTrack.name}.wave'));
 
-    if (!waveFile.existsSync()) return null;
+    if (!waveFile.existsSync()) {
+      final trackFile = File(clickTrack.filePath);
+      final completer = Completer<Waveform>();
+
+      final stream = JustWaveform.extract(
+        audioInFile: trackFile,
+        waveOutFile: waveFile,
+        zoom: const WaveformZoom.pixelsPerSecond(50),
+      );
+
+      stream.listen(
+        (progress) {
+          if (progress.waveform != null && !completer.isCompleted) {
+            completer.complete(progress.waveform);
+          }
+        },
+        onError: (e) {
+          if (!completer.isCompleted) completer.completeError(e);
+        },
+      );
+
+      await completer.future;
+    }
 
     final waveform = await JustWaveform.parse(waveFile);
     int pixelsPerSecond = (waveform.sampleRate / waveform.samplesPerPixel)
