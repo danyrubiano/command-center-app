@@ -415,6 +415,73 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     }
   }
 
+  void _editMetadata() {
+    TextEditingController bpmCtrl = TextEditingController(
+      text: widget.sequence.bpm?.toString() ?? '',
+    );
+    TextEditingController pitchCtrl = TextEditingController(
+      text: widget.sequence.detectedKey == 'Auto'
+          ? ''
+          : widget.sequence.detectedKey,
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Sequence Metadata'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: bpmCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'BPM (e.g. 120.0)',
+                  hintText: 'Leave blank for --',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pitchCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Key (e.g. C#m)',
+                  hintText: 'Leave blank for Auto',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  if (bpmCtrl.text.trim().isNotEmpty) {
+                    widget.sequence.bpm = double.tryParse(bpmCtrl.text.trim());
+                  } else {
+                    widget.sequence.bpm = null;
+                  }
+
+                  if (pitchCtrl.text.trim().isNotEmpty) {
+                    widget.sequence.detectedKey = pitchCtrl.text.trim();
+                  } else {
+                    widget.sequence.detectedKey = 'Auto';
+                  }
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -551,6 +618,40 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        GestureDetector(
+                          onTap: _editMetadata,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white12,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'BPM: ${widget.sequence.bpm?.toStringAsFixed(1) ?? '--'}   |   Key: ${widget.sequence.detectedKey}',
+                                  style: const TextStyle(
+                                    color: Colors.orangeAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.edit,
+                                  size: 12,
+                                  color: Colors.orangeAccent,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
