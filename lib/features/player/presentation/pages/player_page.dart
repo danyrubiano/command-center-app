@@ -623,12 +623,14 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                       ? Colors.blueAccent
                                       : Colors.grey,
                                   onTap: _toggleLoop,
+                                  tooltip: 'Toggle Loop',
                                 ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.skip_previous,
                                   Colors.grey,
                                   onTap: _skipPrevious,
+                                  tooltip: 'Previous Sequence',
                                 ),
                                 const SizedBox(width: 16),
                                 _isTransitioning
@@ -660,18 +662,21 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                         Colors.greenAccent,
                                         size: 64,
                                         onTap: _togglePlayPause,
+                                        tooltip: _isPlaying ? 'Pause' : 'Play',
                                       ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.stop,
                                   Colors.redAccent,
                                   onTap: _stopAndReset,
+                                  tooltip: 'Stop',
                                 ),
                                 const SizedBox(width: 16),
                                 _circularButton(
                                   Icons.skip_next,
                                   Colors.grey,
                                   onTap: _skipNext,
+                                  tooltip: 'Next Sequence',
                                 ),
                               ],
                             ),
@@ -923,8 +928,9 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
     Color color, {
     double size = 48,
     VoidCallback? onTap,
+    String? tooltip,
   }) {
-    return GestureDetector(
+    Widget button = GestureDetector(
       onTap: onTap,
       child: Container(
         width: size,
@@ -938,6 +944,11 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
         ),
       ),
     );
+
+    if (tooltip != null) {
+      return Tooltip(message: tooltip, child: button);
+    }
+    return button;
   }
 }
 
