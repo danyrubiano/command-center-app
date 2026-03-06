@@ -338,6 +338,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   Future<void> _loadAvailableSetlists() async {
     final lists = await SetlistService.getSavedSetlists();
+    lists.sort((a, b) => b.id.compareTo(a.id));
     if (mounted) {
       setState(() => _availableSetlists = lists);
     }
