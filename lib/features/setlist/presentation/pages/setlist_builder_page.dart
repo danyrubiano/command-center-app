@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:command_center_app/core/models/sequence.dart';
 import 'package:command_center_app/core/models/setlist.dart';
@@ -64,6 +67,42 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
         ).showSnackBar(const SnackBar(content: Text('Setlist Saved!')));
       }
       _loadData();
+    }
+  }
+
+  void _exportSetlist() async {
+    if (_currentSetlist == null) return;
+
+    // Auto-save first ensuring exports are current
+    _saveCurrentSetlist();
+
+    try {
+      final String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Setlist Configuration',
+        fileName: '${_currentSetlist!.name.replaceAll(' ', '_')}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (outputFile != null) {
+        final jsonString = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(_currentSetlist!.toJson());
+        final file = File(outputFile);
+        await file.writeAsString(jsonString);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Setlist Exported successfully!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error exporting setlist: $e')));
+      }
     }
   }
 
@@ -402,6 +441,23 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                       backgroundColor: Theme.of(
                                         context,
                                       ).primaryColor,
+                                    ),
+                                  ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(
+                                      Icons.file_download,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Flexible(
+                                      child: Text(
+                                        'Export Config',
+                                        style: TextStyle(color: Colors.white),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    onPressed: _exportSetlist,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blueAccent,
                                     ),
                                   ),
                                 ],
