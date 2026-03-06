@@ -36,11 +36,18 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
 
   late List<CueTag> _cueTags;
 
+  late TextEditingController _bpmController;
+  late TextEditingController _keyController;
+
   @override
   void initState() {
     super.initState();
     // Copy the existing tags so we can safely edit them in-memory
     _cueTags = List.from(widget.sequence.cueTags);
+    _bpmController = TextEditingController(
+      text: widget.sequence.bpm?.toString() ?? '',
+    );
+    _keyController = TextEditingController(text: widget.sequence.detectedKey);
     _initAudio();
     _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (mounted && _isPlaying) {
@@ -178,6 +185,8 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
     HardwareKeyboard.instance.removeHandler(_keyHandler);
     _timer?.cancel();
     _audioEngine.stopAndUnload();
+    _bpmController.dispose();
+    _keyController.dispose();
     super.dispose();
   }
 
@@ -379,10 +388,12 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
 
           if (detectedBpm != null) {
             widget.sequence.bpm = detectedBpm;
+            _bpmController.text = detectedBpm.toString();
           }
 
           if (detectedPitch != null) {
             widget.sequence.detectedKey = detectedPitch;
+            _keyController.text = detectedPitch;
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -413,73 +424,6 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
         });
       }
     }
-  }
-
-  void _editMetadata() {
-    TextEditingController bpmCtrl = TextEditingController(
-      text: widget.sequence.bpm?.toString() ?? '',
-    );
-    TextEditingController pitchCtrl = TextEditingController(
-      text: widget.sequence.detectedKey == 'Auto'
-          ? ''
-          : widget.sequence.detectedKey,
-    );
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Edit Sequence Metadata'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: bpmCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'BPM (e.g. 120.0)',
-                  hintText: 'Leave blank for --',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: pitchCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Key (e.g. C#m)',
-                  hintText: 'Leave blank for Auto',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  if (bpmCtrl.text.trim().isNotEmpty) {
-                    widget.sequence.bpm = double.tryParse(bpmCtrl.text.trim());
-                  } else {
-                    widget.sequence.bpm = null;
-                  }
-
-                  if (pitchCtrl.text.trim().isNotEmpty) {
-                    widget.sequence.detectedKey = pitchCtrl.text.trim();
-                  } else {
-                    widget.sequence.detectedKey = 'Auto';
-                  }
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -618,40 +562,6 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        GestureDetector(
-                          onTap: _editMetadata,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white12,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'BPM: ${widget.sequence.bpm?.toStringAsFixed(1) ?? '--'}   |   Key: ${widget.sequence.detectedKey}',
-                                  style: const TextStyle(
-                                    color: Colors.orangeAccent,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.edit,
-                                  size: 12,
-                                  color: Colors.orangeAccent,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -748,20 +658,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
-                                    controller:
-                                        TextEditingController(
-                                            text:
-                                                widget.sequence.bpm
-                                                    ?.toString() ??
-                                                '',
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset:
-                                                (widget.sequence.bpm
-                                                            ?.toString() ??
-                                                        '')
-                                                    .length,
-                                          ),
+                                    controller: _bpmController,
                                     onChanged: (val) {
                                       widget.sequence.bpm = double.tryParse(
                                         val,
@@ -776,16 +673,7 @@ class _SequenceEditorPageState extends State<SequenceEditorPage> {
                                       labelText: 'Key',
                                       isDense: true,
                                     ),
-                                    controller:
-                                        TextEditingController(
-                                            text: widget.sequence.detectedKey,
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset: widget
-                                                .sequence
-                                                .detectedKey
-                                                .length,
-                                          ),
+                                    controller: _keyController,
                                     onChanged: (val) {
                                       widget.sequence.detectedKey = val.isEmpty
                                           ? 'Auto'
