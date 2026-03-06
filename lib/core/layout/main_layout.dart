@@ -107,6 +107,14 @@ class _MainLayoutState extends State<MainLayout> with WindowListener {
           _selectedIndex = 0; // Jump to Player
         });
       },
+      onSetlistUpdated: (sl) {
+        if (_activeSetlist?.id == sl.id || _activeSetlist == null) {
+          SetlistService.saveLastPlayedSetlistId(sl.id);
+          setState(() {
+            _activeSetlist = sl;
+          });
+        }
+      },
     ),
     const LibraryPage(),
     const SettingsPage(),

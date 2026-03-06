@@ -11,8 +11,13 @@ import 'package:command_center_app/features/setlist/presentation/pages/sequence_
 
 class SetlistBuilderPage extends StatefulWidget {
   final void Function(Setlist)? onSetlistActivated;
+  final void Function(Setlist)? onSetlistUpdated;
 
-  const SetlistBuilderPage({super.key, this.onSetlistActivated});
+  const SetlistBuilderPage({
+    super.key,
+    this.onSetlistActivated,
+    this.onSetlistUpdated,
+  });
 
   @override
   State<SetlistBuilderPage> createState() => _SetlistBuilderPageState();
@@ -46,7 +51,13 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
   void _createNewSetlist() {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
     setState(() {
-      _currentSetlist = Setlist(id: newId, name: 'New Setlist', sequences: []);
+      _currentSetlist = Setlist(
+        id: newId,
+        name: 'New Setlist',
+        sequences: [],
+        isUnsaved: true,
+      );
+      _savedSetlists.insert(0, _currentSetlist!);
     });
   }
 
@@ -60,7 +71,13 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
 
   void _saveCurrentSetlist() async {
     if (_currentSetlist != null) {
+      _currentSetlist!.isUnsaved = false;
       await SetlistService.saveSetlist(_currentSetlist!);
+
+      if (widget.onSetlistUpdated != null) {
+        widget.onSetlistUpdated!(_currentSetlist!);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -254,8 +271,10 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                             context,
                           ).primaryColor.withValues(alpha: 0.2),
                           title: Text(
-                            sl.name,
+                            sl.name + (sl.isUnsaved ? ' (unsaved)' : ''),
                             style: TextStyle(
+                              fontStyle: sl.isUnsaved ? FontStyle.italic : null,
+                              color: sl.isUnsaved ? Colors.orangeAccent : null,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -401,16 +420,13 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                 runSpacing: 8,
                                 children: [
                                   if (_currentSetlist!.sequences.isNotEmpty)
-                                    ElevatedButton.icon(
+                                    IconButton(
                                       icon: const Icon(
                                         Icons.play_circle_fill,
-                                        color: Colors.white,
+                                        color: Colors.greenAccent,
+                                        size: 36,
                                       ),
-                                      label: const Text(
-                                        'Load to Player',
-                                        style: TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      tooltip: 'Play Setlist',
                                       onPressed: () {
                                         if (widget.onSetlistActivated != null) {
                                           widget.onSetlistActivated!(
@@ -418,9 +434,6 @@ class _SetlistBuilderPageState extends State<SetlistBuilderPage> {
                                           );
                                         }
                                       },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                      ),
                                     ),
                                   ElevatedButton.icon(
                                     icon: const Icon(
