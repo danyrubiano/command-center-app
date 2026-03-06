@@ -45,6 +45,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   Timer? _transitionTimer;
 
   bool _isLoopActive = false;
+  bool _isSeeking = false;
 
   // Real-time VU logic
   double _masterVuPeak = 0.0;
@@ -127,7 +128,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
 
   void _checkLooping() {
     if (_currentSequenceIndex < 0 ||
-        _currentSequenceIndex >= _setlist.sequences.length) {
+        _currentSequenceIndex >= _setlist.sequences.length ||
+        _isSeeking) {
       return;
     }
 
@@ -756,8 +758,19 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                           }
 
                                           if (tappedTag != null) {
+                                            _isSeeking = true;
                                             _audioEngine.seek(
                                               tappedTag.position,
+                                            );
+                                            Future.delayed(
+                                              const Duration(milliseconds: 300),
+                                              () {
+                                                if (mounted) {
+                                                  setState(
+                                                    () => _isSeeking = false,
+                                                  );
+                                                }
+                                              },
                                             );
                                             if (!_isPlaying) {
                                               _togglePlayPause();
@@ -770,7 +783,18 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                                           percentage)
                                                       .toInt(),
                                             );
+                                            _isSeeking = true;
                                             _audioEngine.seek(target);
+                                            Future.delayed(
+                                              const Duration(milliseconds: 300),
+                                              () {
+                                                if (mounted) {
+                                                  setState(
+                                                    () => _isSeeking = false,
+                                                  );
+                                                }
+                                              },
+                                            );
                                           }
                                         },
                                         child: Container(
@@ -783,6 +807,7 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                               totalDuration: _totalDuration,
                                               waveform: _mergedWaveform,
                                               cueTags: currentSequence!.cueTags,
+                                              isLoopActive: _isLoopActive,
                                             ),
                                           ),
                                         ),
@@ -1222,12 +1247,14 @@ class _LiveTimelinePainter extends CustomPainter {
   final Duration totalDuration;
   final Waveform? waveform;
   final List<CueTag> cueTags;
+  final bool isLoopActive;
 
   _LiveTimelinePainter({
     required this.currentPosition,
     required this.totalDuration,
     required this.cueTags,
     this.waveform,
+    this.isLoopActive = false,
   });
 
   @override
@@ -1322,6 +1349,43 @@ class _LiveTimelinePainter extends CustomPainter {
       textPainter.paint(canvas, Offset(tagX + 4, yPos));
     }
 
+    // Draw Active Loop Region
+    if (isLoopActive) {
+      double startX = 0;
+      double endX = size.width;
+
+      CueTag? activeTag;
+      CueTag? nextTag;
+
+      for (int i = 0; i < cueTags.length; i++) {
+        if (currentPosition.inMilliseconds >=
+            cueTags[i].position.inMilliseconds) {
+          activeTag = cueTags[i];
+          if (i + 1 < cueTags.length) {
+            nextTag = cueTags[i + 1];
+          } else {
+            nextTag = null;
+          }
+        }
+      }
+
+      if (activeTag != null) {
+        startX =
+            (activeTag.position.inMilliseconds / totalDuration.inMilliseconds) *
+            size.width;
+      }
+      if (nextTag != null) {
+        endX =
+            (nextTag.position.inMilliseconds / totalDuration.inMilliseconds) *
+            size.width;
+      }
+
+      final Rect loopRect = Rect.fromLTRB(startX, 0, endX, size.height);
+      final Paint loopPaint = Paint()
+        ..color = Colors.blueAccent.withValues(alpha: 0.2);
+      canvas.drawRect(loopRect, loopPaint);
+    }
+
     // Draw Playhead Line
     final paintPlayhead = Paint()
       ..color = Colors.redAccent
@@ -1337,6 +1401,7 @@ class _LiveTimelinePainter extends CustomPainter {
   bool shouldRepaint(covariant _LiveTimelinePainter oldDelegate) {
     return oldDelegate.currentPosition != currentPosition ||
         oldDelegate.totalDuration != totalDuration ||
-        oldDelegate.cueTags.length != cueTags.length;
+        oldDelegate.cueTags.length != cueTags.length ||
+        oldDelegate.isLoopActive != isLoopActive;
   }
 }
