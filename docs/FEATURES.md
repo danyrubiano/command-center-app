@@ -18,7 +18,7 @@
 - **Headless Build Matrix Pipeline**:
   - `dart format` execution catching strict styling violations on PR diffs.
   - `flutter analyze` validating memory management heuristics across context lifecycles.
-  - `flutter test` spinning isolated `TestWidgetsFlutterBinding` instances executing granular unit tests across logical models (`Sequence`, `Track`, `Settings`).
+  - `flutter test` spinning isolated `TestWidgetsFlutterBinding` instances executing granular, high-coverage unit tests across both logical models (`Sequence`, `Track`, `Setlist`, `Settings`) and complex side-effecting algorithms (`FileExtractionService`, `AudioEngineService`, `SetlistService`). Tests utilize `mocktail` for wrapping C++ FFI bindings (such as `flutter_soloud`) and leverage `dart:io` memory-sandboxing to validate actual physical logic mapping without corrupting host state.
 - **Compiling AppBundles & iOS Binaries**: Validates the cross-platform toolchains by executing `release --no-codesign` routines confirming upstream Dart commits won't break upstream Apple/Google builds cleanly.
 
 ## Responsive UI Capabilities
