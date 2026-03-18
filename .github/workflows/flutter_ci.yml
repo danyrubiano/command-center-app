@@ -8,12 +8,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Java
+        if: matrix.os == 'macos-latest'
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
